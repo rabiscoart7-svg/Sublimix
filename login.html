@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sublimix - Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a3a52 0%, #263238 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .login-container {
+            background: #f5f5f5;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 500px;
+            padding: 40px;
+        }
+
+        .header {
+            background: #263238;
+            color: white;
+            text-align: center;
+            padding: 30px;
+            border-radius: 15px 15px 0 0;
+            margin: -40px -40px 40px -40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            font-size: 40px;
+        }
+
+        .header h1 {
+            font-size: 36px;
+            font-weight: bold;
+            color: #f57c00;
+            letter-spacing: 2px;
+        }
+
+        .welcome-text {
+            color: #b0bec5;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .login-title {
+            font-size: 36px;
+            font-weight: bold;
+            color: #263238;
+            text-align: center;
+            margin-bottom: 30px;
+            letter-spacing: 3px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #555;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 15px;
+            color: #999;
+            font-size: 20px;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 12px 15px 12px 45px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            background: white;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #f57c00;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            cursor: pointer;
+            font-size: 20px;
+            color: #f57c00;
+            background: none;
+            border: none;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 25px;
+        }
+
+        .remember-me input[type="checkbox"] {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+
+        .remember-me label {
+            margin: 0;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .btn-enter {
+            width: 100%;
+            padding: 14px;
+            background: #f57c00;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            letter-spacing: 2px;
+        }
+
+        .btn-enter:hover {
+            background: #e65100;
+        }
+
+        .btn-enter:active {
+            transform: scale(0.98);
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 25px;
+            gap: 20px;
+        }
+
+        .footer-links a {
+            color: #f57c00;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .footer-links a:hover {
+            color: #e65100;
+        }
+
+        .bottom-bar {
+            background: #263238;
+            color: #f57c00;
+            text-align: center;
+            padding: 15px;
+            border-radius: 0 0 15px 15px;
+            margin: 30px -40px -40px -40px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .bottom-bar small {
+            display: block;
+            color: #90a4ae;
+            font-size: 12px;
+            font-weight: normal;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            font-size: 20px;
+            font-weight: bold;
+            color: #263238;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f57c00;
+            padding-bottom: 10px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .btn-secondary {
+            padding: 8px 15px;
+            background: #e0e0e0;
+            color: #333;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .btn-secondary:hover {
+            background: #ccc;
+        }
+
+        .btn-primary {
+            padding: 8px 15px;
+            background: #f57c00;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .btn-primary:hover {
+            background: #e65100;
+        }
+
+        .error-message {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .success-message {
+            color: #388e3c;
+            background: #e8f5e9;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="header">
+            <div class="logo-container">
+                <div class="logo">☁️</div>
+            </div>
+            <h1>Sublimix</h1>
+            <p class="welcome-text">Olá, seja bem-vindo(a)!</p>
+        </div>
+
+        <div style="padding: 0;">
+            <h2 class="login-title">LOGIN</h2>
+
+            <div class="error-message" id="errorMsg"></div>
+            <div class="success-message" id="successMsg"></div>
+
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Usuário:</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">👤</span>
+                        <input type="text" id="username" placeholder="Digite seu usuário" required autofocus>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Senha:</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">🔒</span>
+                        <input type="password" id="password" placeholder="Digite sua senha" required>
+                        <button type="button" class="toggle-password" onclick="togglePassword()">👁️</button>
+                    </div>
+                </div>
+
+                <div class="remember-me">
+                    <input type="checkbox" id="rememberMe">
+                    <label for="rememberMe">Lembrar-me neste computador</label>
+                </div>
+
+                <button type="submit" class="btn-enter">ENTRAR</button>
+            </form>
+
+            <div class="footer-links">
+                <a onclick="openRegisterModal()">Usar outra Conta</a>
+                <a onclick="openForgotModal()">Esqueci a senha</a>
+            </div>
+
+            <div class="bottom-bar">
+                CADASTRAR USUÁRIO
+                <small>(É preciso a senha do Administrador)</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: REGISTRAR NOVO USUÁRIO -->
+    <div class="modal" id="registerModal">
+        <div class="modal-content">
+            <div class="modal-header">Cadastrar Novo Usuário</div>
+            
+            <div class="error-message" id="registerError"></div>
+
+            <form onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label>Nome:</label>
+                    <input type="text" id="regName" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Usuário:</label>
+                    <input type="text" id="regUsername" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Senha:</label>
+                    <input type="password" id="regPassword" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Confirmar Senha:</label>
+                    <input type="password" id="regPasswordConfirm" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Perfil:</label>
+                    <select id="regPerfil" required style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                        <option value="">Selecione um perfil</option>
+                        <option value="Caixa">Caixa</option>
+                        <option value="Atendente">Atendente</option>
+                        <option value="Vendedor">Vendedor</option>
+                        <option value="Técnico">Técnico</option>
+                        <option value="Padrão">Padrão</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Senha do Administrador:</label>
+                    <input type="password" id="regAdminPass" placeholder="Necessário para cadastrar" required>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeRegisterModal()">Cancelar</button>
+                    <button type="submit" class="btn-primary">Cadastrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: RESETAR SENHA -->
+    <div class="modal" id="forgotModal">
+        <div class="modal-content">
+            <div class="modal-header">Recuperar Senha</div>
+            
+            <div class="error-message" id="forgotError"></div>
+            <div class="success-message" id="forgotSuccess"></div>
+
+            <form onsubmit="handleForgotPassword(event)">
+                <div class="form-group">
+                    <label>Usuário:</label>
+                    <input type="text" id="forgotUsername" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Senha Master (programador):</label>
+                    <input type="password" id="masterPassword" placeholder="Usada para resetar" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Nova Senha:</label>
+                    <input type="password" id="newPassword" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Confirmar Senha:</label>
+                    <input type="password" id="confirmNewPassword" required>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeForgotModal()">Cancelar</button>
+                    <button type="submit" class="btn-primary">Resetar Senha</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+        const MASTER_PASSWORD = 'sublimix2026';
+
+        // Toggle Senha
+        function togglePassword() {
+            const pass = document.getElementById('password');
+            pass.type = pass.type === 'password' ? 'text' : 'password';
+        }
+
+        // Abrir Modal de Registro
+        function openRegisterModal() {
+            document.getElementById('registerModal').classList.add('active');
+            document.getElementById('regName').focus();
+        }
+
+        function closeRegisterModal() {
+            document.getElementById('registerModal').classList.remove('active');
+            document.getElementById('registerError').style.display = 'none';
+            document.getElementById('registerForm').reset();
+        }
+
+        // Abrir Modal de Recuperação de Senha
+        function openForgotModal() {
+            document.getElementById('forgotModal').classList.add('active');
+            document.getElementById('forgotUsername').focus();
+        }
+
+        function closeForgotModal() {
+            document.getElementById('forgotModal').classList.remove('active');
+            document.getElementById('forgotError').style.display = 'none';
+            document.getElementById('forgotSuccess').style.display = 'none';
+        }
+
+        // Fechar modal ao clicar fora
+        window.onclick = function(event) {
+            const registerModal = document.getElementById('registerModal');
+            const forgotModal = document.getElementById('forgotModal');
+            if (event.target === registerModal) closeRegisterModal();
+            if (event.target === forgotModal) closeForgotModal();
+        }
+
+        // LOGIN
+        async function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const remember = document.getElementById('rememberMe').checked;
+
+            // Validação local de demonstração
+            if (username === 'admin' && password === 'admin123') {
+                localStorage.setItem('usuarioLogado', 'true');
+                localStorage.setItem('token', 'demo-token');
+                localStorage.setItem('user', JSON.stringify({username, name: 'Administrador'}));
+                if (remember) localStorage.setItem('rememberUser', username);
+                
+                document.getElementById('successMsg').textContent = '✓ Login realizado com sucesso!';
+                document.getElementById('successMsg').style.display = 'block';
+                
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 500);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    localStorage.setItem('usuarioLogado', 'true');
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    if (remember) localStorage.setItem('rememberUser', username);
+                    
+                    document.getElementById('successMsg').textContent = '✓ Login realizado com sucesso!';
+                    document.getElementById('successMsg').style.display = 'block';
+                    
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 500);
+                } else {
+                    showError(data.message || 'Usuário ou senha inválidos');
+                }
+            } catch (error) {
+                showError('Erro ao conectar ao servidor. Use admin/admin123 para teste.');
+            }
+        }
+
+        // REGISTRAR
+        async function handleRegister(event) {
+            event.preventDefault();
+            const name = document.getElementById('regName').value;
+            const username = document.getElementById('regUsername').value;
+            const password = document.getElementById('regPassword').value;
+            const passwordConfirm = document.getElementById('regPasswordConfirm').value;
+            const perfil = document.getElementById('regPerfil').value;
+            const adminPass = document.getElementById('regAdminPass').value;
+
+            if (password !== passwordConfirm) {
+                showRegisterError('As senhas não conferem');
+                return;
+            }
+
+            if (adminPass !== MASTER_PASSWORD) {
+                showRegisterError('Senha do Administrador inválida');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, username, password, perfil })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('registerError').style.display = 'none';
+                    alert('✓ Usuário cadastrado com sucesso!');
+                    closeRegisterModal();
+                } else {
+                    showRegisterError(data.message || 'Erro ao cadastrar');
+                }
+            } catch (error) {
+                showRegisterError('Erro: ' + error.message);
+            }
+        }
+
+        // RESETAR SENHA
+        async function handleForgotPassword(event) {
+            event.preventDefault();
+            const username = document.getElementById('forgotUsername').value;
+            const masterPass = document.getElementById('masterPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+
+            if (masterPass !== MASTER_PASSWORD) {
+                showForgotError('Senha Master inválida');
+                return;
+            }
+
+            if (newPassword !== confirmNewPassword) {
+                showForgotError('As senhas não conferem');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/auth/reset-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, newPassword })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showForgotSuccess('✓ Senha resetada com sucesso!');
+                    setTimeout(() => closeForgotModal(), 1500);
+                } else {
+                    showForgotError(data.message || 'Erro ao resetar senha');
+                }
+            } catch (error) {
+                showForgotError('Erro: ' + error.message);
+            }
+        }
+
+        // Helpers
+        function showError(msg) {
+            const errorDiv = document.getElementById('errorMsg');
+            errorDiv.textContent = msg;
+            errorDiv.style.display = 'block';
+            setTimeout(() => errorDiv.style.display = 'none', 5000);
+        }
+
+        function showRegisterError(msg) {
+            const errorDiv = document.getElementById('registerError');
+            errorDiv.textContent = msg;
+            errorDiv.style.display = 'block';
+        }
+
+        function showForgotError(msg) {
+            const errorDiv = document.getElementById('forgotError');
+            errorDiv.textContent = msg;
+            errorDiv.style.display = 'block';
+        }
+
+        function showForgotSuccess(msg) {
+            const successDiv = document.getElementById('forgotSuccess');
+            successDiv.textContent = msg;
+            successDiv.style.display = 'block';
+        }
+
+        // Carrega usuário lembrado
+        window.addEventListener('load', () => {
+            const rememberUser = localStorage.getItem('rememberUser');
+            if (rememberUser) {
+                document.getElementById('username').value = rememberUser;
+                document.getElementById('rememberMe').checked = true;
+                document.getElementById('password').focus();
+            }
+        });
+
+        // Enter para fazer login
+        document.getElementById('loginForm').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleLogin(e);
+        });
+    </script>
+</body>
+</html>

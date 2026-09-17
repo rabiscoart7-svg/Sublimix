@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Sublimix PDV - Sistema Unificado</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <script>
+        // Aguardar XLSX carregar antes de verificar autenticação
+        function verificarXLSXeAutenticacao() {
+            if (typeof XLSX !== 'undefined') {
+                if (!localStorage.getItem('usuarioLogado')) {
+                    window.location.href = 'login.html';
+                }
+            } else {
+                setTimeout(verificarXLSXeAutenticacao, 100);
+            }
+        }
+        verificarXLSXeAutenticacao();
+    </script>
+    <style>   
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="logo-area">
+        <img src="https://cdn-icons-png.flaticon.com/512/1046/1046875.png" alt="Logo" />
+        <span>Sublimix</span>
+    </div>
+    <ul class="menu">
+        <li class="active" onclick="mudarTela('screen-caixa', this)">Caixa</li>
+        <li onclick="mudarTela('screen-pedido', this)">Fazer encomenda</li>
+        <li onclick="mudarTela('screen-produto', this)">Cadastrar Produto</li>
+        <li onclick="mudarTela('screen-cliente', this)">Cadastrar Cliente</li>
+        <li onclick="mudarTela('screen-totais', this)">Totais em caixa</li>
+        <li onclick="mudarTela('screen-fecharcaixa', this)">Fechar Caixa</li>
+        <li onclick="mudarTela('screen-recebimento', this)">Recebimento</li>
+        <li onclick="mudarTela('screen-devolucao', this)">Devolução</li>
+        <li onclick="mudarTela('screen-estoque', this)">Estoque</li>
+            <!-- TELA DE ESTOQUE -->
+            <!-- Mover para dentro da div .main -->
+        <li onclick="mudarTela('screen-relatorios', this)">Relatórios</li>
+        <li onclick="mudarTela('screen-catalogo', this)">Catálogo</li>
+        <li onclick="mudarTela('screen-backup', this)">Backup</li>
+        <li onclick="mudarTela('screen-configuracoes', this)">Configurações</li>
+    </ul>
+</div>
+
+<div class="main">
+    <div id="screen-estoque" class="screen">
+        <div style="display: flex; gap: 30px; align-items: flex-start; padding: 10px 0;">
+            <div style="flex: 3;">
+                <div style="display: flex; gap: 10px; align-items: flex-end; margin-bottom: 10px;">
+                    <div>
+                        <label>Data conferência:</label><br>
+                        <input type="date" id="estoqueData" style="padding: 8px; width: 160px;">
+                    </div>
+                    <div>
+                        <label>Data entrada:</label><br>
+                        <input type="date" id="estoqueDataEntrada" style="padding: 8px; width: 160px;">
+                    </div>
+                    <div>
+                        <label>Data saída:</label><br>
+                        <input type="date" id="estoqueDataSaida" style="padding: 8px; width: 160px;">
+                    </div>
+                    <div>
+                        <label>Produto:</label><br>
+                        <input type="text" id="estoqueBuscaProduto" placeholder="Nome ou código" style="padding: 8px; width: 200px;">
+                    </div>
+                    <button class="btn-laranja-erp" onclick="pesquisarProdutoEstoque()">Pesquisar Produto 🔍</button>
+                </div>
+                <div class="erp-tabela-area" style="height: 350px;">
+                    <table class="erp-tabela" id="tabelaEstoque">
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th>UN</th>
+                                <th>Estoque</th>
+                                <th>Saída</th>
+                                <th>Estoque Atual</th>
+                                <th>Estoque Mínimo</th>
+                                <th>Estoque Financeiro (R$)</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 20px;">
+                <div class="caixa-display">
+                    <label>Estoque Geral<br><span style='font-size:0.7rem'>[soma de todos os produtos]</span></label>
+                    <span id="estoqueGeral">0,00</span>
+                </div>
+                <div class="caixa-display">
+                    <label>Financeiro Geral<br><span style='font-size:0.7rem'>[soma de todos os valores dos produtos]</span></label>
+                    <span id="financeiroGeral">R$ 00,00</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="header">
+        <div style="display:flex; align-items:center; gap:15px"><span>☰</span><strong id="titulo-header">Caixa</strong></div>
+        <div style="cursor:pointer;" onclick="fazerLogout()">👤 Usuário <span style="margin-left:20px">Logout ➔</span></div>
+    </div>
+
+    <div id="screen-caixa" class="screen active">
+        <div id="react-dashboard"></div>
+        <div class="caixa-grid">
+            <div class="caixa-topo">
+                <div style="flex:3"><label style="font-size:0.8rem">Produto (F3)</label><br><input id="caixaInputProduto" type="text" style="width:100%; padding:8px" placeholder="🔍"></div>
+                <div style="flex:0.5"><label style="font-size:0.8rem">Quantidade</label><br><input id="caixaInputQtd" type="number" value="1" style="width:100%; padding:8px"></div>
+                <button class="btn-laranja-erp" style="margin-top:18px" onclick="abrirModalProdutosCaixa()">Consultar Produto</button>
+            </div>
+
+            <div class="caixa-tabela-area">
+                <table class="caixa-tabela">
+                    <thead><tr><th>Código</th><th>Produto</th><th>QTDE</th><th>Valor Unit R$:</th><th>Total R$:</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- Modal de seleção de produto -->
+            <div id="modalProdutosCaixa" class="modal" style="display:none;">
+                <div class="modal-content" style="width: 90%; max-width: 900px;">
+                    <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>Selecionar produto</span>
+                        <button class="btn-secondary" onclick="fecharModalProdutosCaixa()" style="padding:4px 10px;">X</button>
+                    </div>
+                    <div style="margin-top:10px;">
+                        <input id="modalBuscaProduto" type="text" placeholder="Buscar por código ou descrição..." style="width:100%; padding:8px;" oninput="filtrarProdutosModal()" />
+                    </div>
+                    <div style="max-height: 420px; overflow:auto; margin-top:10px;">
+                        <table class="erp-tabela" style="width:100%;">
+                            <thead style="background:#263238; color:#fff;"><tr><th>Código</th><th>Data Cadastro</th><th>Descrição</th><th>Unidade</th><th>Venda</th><th>Estoque</th><th>Estoque Min.</th><th>Est. Atual</th></tr></thead>
+                            <tbody id="modalProdutosBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="modal-footer" style="margin-top:10px;">
+                        <button class="btn-secondary" onclick="fecharModalProdutosCaixa()">Cancelar</button>
+                        <button class="btn-secondary" onclick="abrirCadastroProduto()">Cadastrar Novo Produto</button>
+                        <button class="btn-primary" onclick="confirmarProdutoModal()">OK</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="modalHistoricoVendas" class="modal" style="display:none;">
+    <div class="modal-content" style="width: 90%; max-width: 500px;">
+        <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>📋 Histórico de Vendas</span>
+            <button class="btn-secondary" onclick="fecharModalHistorico()" style="padding:4px 10px;">X</button>
+        </div>
+        <div style="padding: 20px;">
+            <label style="display:block; margin-bottom:10px;"><strong>Selecione uma venda para reimprimir:</strong></label>
+            <select id="selectHistoricoVendas" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px; font-size:0.9rem; max-height:300px;">
+                <option>Carregando...</option>
+            </select>
+        </div>
+        <div class="modal-footer" style="margin-top:10px; display:flex; gap:10px;">
+            <button class="btn-secondary" onclick="fecharModalHistorico()">Cancelar</button>
+            <button class="btn-primary" onclick="imprimirVendaHistorico()">🖨️ Reimprimir Venda</button>
+        </div>
+    </div>
+</div>
+
+            <div id="modalComprovante" class="modal" style="display:none;">
+                <div class="modal-content" style="width: 90%; max-width: 500px; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>📄 Comprovante da Venda</span>
+            <button class="btn-secondary" onclick="fecharModalComprovante()" style="padding:4px 10px;">X</button>
+        </div>
+        <div id="conteudoComprovante" style="padding: 20px; font-family: monospace; font-size: 0.9rem; background:#f5f5f5; border-radius:4px; flex: 1 1 auto; min-height: 0; overflow-y:auto;">
+            <!-- Conteúdo do comprovante será preenchido dinamicamente -->
+        </div>
+        <div class="modal-footer" style="margin-top:10px; display:flex; gap:10px; flex-shrink: 0;">
+            <button class="btn-secondary" onclick="fecharModalComprovante()">Fechar</button>
+            <button class="btn-primary" onclick="imprimirComprovante()">🖨️ Imprimir Comprovante</button>
+        </div>
+    </div>
+</div>
+
+            <div id="modalPagamentoCaixa" class="modal" style="display:none;">
+    <div class="modal-content" style="width: 90%; max-width: 500px;">
+        <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Forma de Pagamento</span>
+            <button class="btn-secondary" onclick="fecharModalPagamentoCaixa()" style="padding:4px 10px;">X</button>
+        </div>
+        <div style="padding: 20px; text-align: center;">
+            <div style="margin-bottom: 20px; font-size: 1.2rem; font-weight: bold;">
+                Total: <span id="modalTotalPagamento" style="color: var(--laranja);">R$ 0,00</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <button id="btn-dinheiro" class="btn-primary" style="padding: 20px; font-size: 1rem;" onclick="abrirPagamentoDinheiro()">💵 Dinheiro (D)</button>
+                <button id="btn-pix" class="btn-primary" style="padding: 20px; font-size: 1rem;" onclick="abrirPagamentoPix()">📱 Pix (P)</button>
+                <button id="btn-debito" class="btn-primary" style="padding: 20px; font-size: 1rem;" onclick="selecionarOpcao(this, 'Cartão Débito')">💳 Débito (C)</button>
+                <button id="btn-credito" class="btn-primary" style="padding: 20px; font-size: 1rem;" onclick="selecionarOpcao(this, 'Cartão Crédito')">💳 Crédito (Y)</button>
+                <button id="btn-crediario" class="btn-primary" style="padding: 20px; font-size: 1rem; grid-column: 1 / -1;" onclick="selecionarOpcao(this, 'Crediário')">📋 Crediário (N)</button>
+            </div>
+        </div>
+        
+        <div class="modal-footer" style="margin-top:10px; text-align: center; display: flex; justify-content: center; gap: 10px;">
+            <button id="btn-confirmar-venda" class="btn-primary" style="padding: 12px 30px; font-size: 1.1rem; min-width: 200px;" onclick="confirmarPagamento()">
+                Finalizar venda (F9)
+            </button>
+            <button class="btn-secondary" style="padding: 12px 20px;" onclick="fecharModalPagamentoCaixa()">Cancelar</button>
+        </div>
+    </div>
+</div>
+<div id="modalDinheiroCaixa" class="modal" style="display:none;">
+    <div class="modal-content" style="width: 90%; max-width: 450px;">
+        <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Pagamento em Dinheiro</span>
+            <button class="btn-secondary" onclick="fecharModalDinheiroCaixa()" style="padding:4px 10px;">X</button>
+        </div>
+        <div style="padding: 20px;">
+            <div style="display: grid; gap: 15px;">
+                <div>
+                    <label style="font-size: 0.9rem; font-weight: bold;">Total da Venda:</label>
+                    <div style="background: #fffde7; padding: 12px; border-radius: 4px; font-size: 1.3rem; font-weight: bold; color: var(--laranja);">
+                        R$ <span id="dinheiroTotalVenda">0,00</span> </div>
+                </div>
+                <div>
+                    <label style="font-size: 0.9rem; font-weight: bold;">Valor Pago:</label>
+                    <input id="dinheiroValorPago" type="number" step="0.01" min="0" placeholder="0,00" style="width:100%; padding:10px; border: 2px solid #ccc; border-radius: 4px; font-size: 1rem;" oninput="calcularTroco()" onkeypress="if(event.key==='Enter') confirmarPagamentoDinheiro()">
+                </div>
+                <div>
+                    <label style="font-size: 0.9rem; font-weight: bold;">Troco:</label>
+                    <div style="background: #e8f5e9; padding: 12px; border-radius: 4px; font-size: 1.3rem; font-weight: bold; color: #2e7d32;">
+                        R$ <span id="dinheiroTroco">0,00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer" style="margin-top:10px;">
+            <button class="btn-secondary" onclick="fecharModalDinheiroCaixa()">Cancelar</button>
+            <button class="btn-primary" onclick="confirmarPagamentoDinheiro()">Confirmar (F9)</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalPixCaixa" class="modal" style="display:none;">
+    <div class="modal-content" style="width: 90%; max-width: 450px;">
+        <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Pagamento em Pix</span>
+            <button class="btn-secondary" onclick="fecharModalPixCaixa()" style="padding:4px 10px;">X</button>
+        </div>
+        <div style="padding: 20px; text-align: center;">
+            <div style="margin-bottom: 20px; font-size: 1rem;">
+                Total a pagar:<br>
+                <span style="font-size: 1.8rem; font-weight: bold; color: var(--laranja);">R$ <span id="pixTotalVenda">0,00</span></span> </div>
+            <div id="pixQrDisplay" style="min-height: 150px; background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 10px 0;">
+                <p style="text-align: center; color: #999;">Aguardando confirmação...</p>
+            </div>
+        </div>
+        <div class="modal-footer" style="margin-top:10px;">
+            <button class="btn-secondary" onclick="fecharModalPixCaixa()">Cancelar</button>
+            <button class="btn-primary" onclick="confirmarPagamentoPix()">Finalizar (F9)</button>
+        </div>
+    </div>
+</div>
+            <!-- Modal de Suprimento -->
+            <div id="modalSuprimentoCaixa" class="modal" style="display:none;">
+                <div class="modal-content" style="width: 90%; max-width: 400px;">
+                    <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>Suprimento</span>
+                        <button class="btn-secondary" onclick="fecharModalSuprimento()" style="padding:4px 10px;">X</button>
+                    </div>
+                    <div style="padding: 20px;">
+                        <label style="font-size: 0.9rem; font-weight: bold;">Valor do Suprimento:</label>
+                        <input id="suprimentoValor" type="number" step="0.01" min="0" placeholder="0,00" style="width:100%; padding:10px; border: 2px solid #ccc; border-radius: 4px; font-size: 1rem; margin-top: 8px;">
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-secondary" onclick="fecharModalSuprimento()">Cancelar</button>
+                        <button class="btn-primary" onclick="confirmarSuprimento()">Confirmar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal de Sangria -->
+            <div id="modalSangriaCaixa" class="modal" style="display:none;">
+                <div class="modal-content" style="width: 90%; max-width: 400px;">
+                    <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>Sangria</span>
+                        <button class="btn-secondary" onclick="fecharModalSangria()" style="padding:4px 10px;">X</button>
+                    </div>
+                    <div style="padding: 20px;">
+                        <label style="font-size: 0.9rem; font-weight: bold;">Valor da Sangria:</label>
+                        <input id="sangriaValor" type="number" step="0.01" min="0" placeholder="0,00" style="width:100%; padding:10px; border: 2px solid #ccc; border-radius: 4px; font-size: 1rem; margin-top: 8px;">
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-secondary" onclick="fecharModalSangria()">Cancelar</button>
+                        <button class="btn-primary" onclick="confirmarSangria()">Confirmar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="caixa-painel-direita">
+                <div class="caixa-display"><label>Preço Unitário R$:</label><span id="caixaPrecoUnit">R$ 0,00</span></div>
+                <div class="caixa-display"><label>Total R$:</label><span id="caixaTotalItem">R$ 0,00</span></div>
+                <div class="caixa-display"><label>Unidade:</label><span id="caixaUnidade">Un</span></div>
+                <div class="caixa-display" style="background:#fffde7"><label>Total Geral R$:</label><span id="caixaTotalGeral" style="color:var(--laranja)">R$ 0,00</span></div>
+                <div class="caixa-pgto-box">
+                   <!-- <p style="font-size:0.7rem; margin-bottom:5px">Formas de pagamento:</p>
+                    <button class="btn-pgto-laranja" onclick="aplicarPagamento('Dinheiro')">D - Dinheiro</button>
+                    <button class="btn-pgto-laranja" onclick="aplicarPagamento('Cartão Débito')">C - Cartão Débito</button>
+                    <button class="btn-pgto-laranja" onclick="aplicarPagamento('Cartão Crédito')">Y - Cartão Crédito</button>
+                    <button class="btn-pgto-laranja" onclick="aplicarPagamento('Pix')">P - Pix</button>
+                    <button class="btn-pgto-laranja" onclick="aplicarPagamento('Crediario')">N - Crediário</button> -->
+                </div>
+            </div>
+
+            <div class="caixa-rodape">
+                <div>
+                    <button class="btn-rodape-caixa" style="background:white" onclick="abrirModalSuprimento()">Suprimento</button>
+                    <button class="btn-rodape-caixa" style="background:white" onclick="abrirModalSangria()">Sangria</button>
+                </div>
+                <div style="display:flex; gap:10px">
+                    <button class="btn-rodape-caixa" style="background:var(--laranja); color:white; border:none" onclick="cancelarVenda()">Cancelar Venda (F7)</button>
+                    <button class="btn-rodape-caixa" style="background:white" onclick="finalizarVenda()">Finalizar Venda (F8)</button>
+                    <button class="btn-rodape-caixa" style="background:white" onclick="imprimirVenda()">Imprimir (F10)</button>
+                    <button class="btn-rodape-caixa" style="background:white" onclick="abrirModalHistorico()">📋 Histórico</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-pedido" class="screen">
+        <div class="erp-form">
+            <h4 style="margin-bottom:10px">Pedido de encomenda</h4>
+            <div class="erp-grid">
+                <div class="erp-field"><label>Data Inicial</label><input type="date" id="pDataIni"></div>
+                <div class="erp-field"><label>Data Final</label><input type="date" id="pDataFin"></div>
+                <div class="erp-field"><label>Código (Auto)</label><input type="text" id="pCod" readonly style="background-color:#e8f5e9;"></div>
+                <div class="erp-field" style="grid-column: span 2"><label>Cliente</label><input type="text" id="pCliente"></div>
+                <div class="erp-field"><label>Status</label><select id="pStatus"><option>Aberto</option><option>Finalizado</option></select></div>
+                <div class="erp-field"><label>Qtd</label><input type="number" id="pQtd" oninput="calcTotalPedido()"></div>
+                <div class="erp-field"><label>V. Unit</label><input type="number" id="pVUnit" oninput="calcTotalPedido()"></div>
+                <div class="erp-field"><label>Total</label><input type="number" id="pTotal" readonly></div>
+                <div class="erp-field"><label>Entrada 50%</label><input type="number" id="pEntrada" oninput="calcRestante()"></div>
+                <div class="erp-field"><label>Restante</label><input type="number" id="pRestante" readonly></div>
+            </div>
+            <div class="btn-group-erp">
+                <button class="btn-azul" onclick="cadastrarPedido()">Registrar pedido</button>
+                <button class="btn-azul" onclick="enableEdicaoPedido()">✏️ Habilitar Edição</button>
+                <button class="btn-azul" onclick="salvarEdicaoPedido()">💾 Salvar Edição</button>
+                <button class="btn-azul" onclick="excluirPedido()">Excluir pedido</button>
+                <button class="btn-azul" onclick="finalizarPedido()">Finalizar pedido</button>
+                <button class="btn-azul" onclick="imprimirPedido()">Imprimir pedido</button>
+                <button class="btn-azul" onclick="gerarPDFPedido()">Gerar PDF</button>
+            </div>
+            <div style="display:flex; gap:10px">
+                <button class="btn-azul" style="background:#263238" onclick="novoPedido()">Novo pedido</button>
+                <button class="btn-laranja-erp" onclick="pesquisarPedido()">Pesquisar Pedido 🔍</button>
+            </div>
+        </div>
+        <div class="erp-tabela-area"><table class="erp-tabela"><thead><tr><th>Código</th><th>Data Inicial</th><th>Data Entrega</th><th>Cliente</th><th>Status</th><th>Qtd</th><th>Total</th><th>Entrada</th><th>Restante</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <div id="screen-produto" class="screen">
+        <div class="erp-form">
+            <h4 style="margin-bottom:10px">Cadastro do Produto</h4>
+            <div class="erp-grid">
+                <div class="erp-field"><label>Código do pedido*</label><input type="text" id="prodCod" readonly></div>
+                <div class="erp-field"><label>Data cadastro*</label><input type="date" id="prodData"></div>
+                <div class="erp-field" style="grid-column: span 2"><label>Descrição do produto*</label><input type="text" id="prodDesc"></div>
+                <div class="erp-field"><label>Unidade*</label><select id="prodUnidade"><option>unid</option></select></div>
+                <div class="erp-field"><label>Valor de custo</label><input type="number" id="pCusto" oninput="calcP()"></div>
+                <div class="erp-field"><label>Margem (%)</label><input type="number" id="pMargem" oninput="calcP()"></div>
+                <div class="erp-field"><label>Valor de venda*</label><input type="number" id="pVenda"></div>
+                <div class="erp-field"><label>Estoque Inicial</label><input type="number" id="prodEstoque"></div>
+                <div class="erp-field"><label>Estoque Atual</label><input type="number" id="prodEstoqueAtual"></div>
+            </div>
+            <div class="btn-group-erp">
+                <button class="btn-azul" onclick="cadastrarProduto()">Cadastrar Produto</button>
+                <button class="btn-azul" onclick="enableEdicaoProduto()">✎ Habilitar Edição</button>
+                <button class="btn-azul" onclick="editarProduto()">💾 Salvar Edição</button>
+                <button class="btn-azul" onclick="excluirProduto()">❌ Excluir</button>
+            </div>
+            <button class="btn-azul" style="background:#263238" onclick="novoProduto()">Novo Produto</button>
+            <button class="btn-laranja-erp" onclick="pesquisarProduto()">Pesquisar Produto 🔍</button>
+            <button class="btn-laranja-erp" onclick="exportarProdutosXLSX()" style="background:#1976d2;">📊 Exportar XLSX</button>
+            <button class="btn-laranja-erp" onclick="abrirImportacaoXLSX()" style="background:#43a047;">📥 Importar XLSX</button>
+            <input type="file" id="inputImportarXLSX" accept=".xlsx,.xls" style="display:none;" onchange="importarProdutosXLSX(event)">
+        </div>
+        <div class="erp-tabela-area"><table class="erp-tabela"><thead><tr><th>Código</th><th>Data</th><th>Descrição</th><th>Unidade</th><th>Custo</th><th>Margem (%)</th><th>Venda</th><th>Estoque</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <div id="screen-cliente" class="screen">
+        <div class="erp-form">
+            <h4 style="margin-bottom:10px">Cadastro de Cliente</h4>
+            <div class="erp-grid">
+                <div class="erp-field"><label>Código do Cliente*</label><input type="text" id="cCod" readonly placeholder="Automático"></div>
+                <div class="erp-field"><label>Data cadastro*</label><input type="date" id="cData"></div>
+                <div class="erp-field" style="grid-column: span 2"><label>Nome do Cliente*</label><input type="text" id="cNome"></div>
+                <div class="erp-field"><label>Tipo de Cliente</label><select id="cTipo" onchange="trocarLabel()"><option value="PF">Pessoa Física</option><option value="PJ">Pessoa Jurídica</option></select></div>
+                <div class="erp-field"><label id="labelCpf">CPF/CNPJ*</label><input type="text" id="cCpf"></div>
+                <div class="erp-field"><label>Celular*</label><input type="text" id="cCelular"></div>
+                <div class="erp-field"><label>E-mail</label><input type="text" id="cEmail"></div>
+                <div class="erp-field"><label>CEP</label><input type="text" id="cCep"></div>
+                <div class="erp-field" style="grid-column: span 2"><label>Endereço</label><input type="text" id="cEndereco"></div>
+                <div class="erp-field"><label>Número</label><input type="text" id="cNumero"></div>
+                <div class="erp-field"><label>Bairro</label><input type="text" id="cBairro"></div>
+                <div class="erp-field"><label>Complemento</label><input type="text" id="cComplemento"></div>
+                <div class="erp-field"><label>Cidade</label><input type="text" id="cCidade"></div>
+                <div class="erp-field"><label>UF</label><input type="text" id="cUf" maxlength="2"></div>
+                <div class="erp-field" style="grid-column: span 2"><label>Observações</label><input type="text" id="cObs"></div>
+            </div>
+            <div class="btn-group-erp">
+                <button class="btn-azul" onclick="cadastrarCliente()">Cadastrar Cliente</button>
+                <button class="btn-azul" onclick="editarCliente()">Editar Cliente</button>
+                <button class="btn-azul" onclick="excluirCliente()">Excluir Cliente</button>
+                <button class="btn-azul">Imprimir Ficha</button>
+            </div>
+            <div style="display:flex; gap:10px">
+                <button class="btn-azul" style="background:#263238" onclick="novoCliente()">Novo Cliente</button>
+                <button class="btn-laranja-erp" onclick="pesquisarCliente()">Pesquisar Cliente 🔍</button>
+            </div>
+        </div>
+        <div class="erp-tabela-area"><table class="erp-tabela"><thead><tr><th>Código</th><th>Data</th><th>Nome</th><th>Tipo</th><th>CPF/CNPJ</th><th>Celular</th><th>Email</th><th>Endereço</th><th>Cidade</th><th>UF</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <div id="screen-totais" class="screen">
+        <div class="totais-container">
+            <div class="totais-resumo">
+                <div class="totais-data">Data: <span id="dataTotais"></span></div>
+                <div class="totais-grid">
+                    <div class="totais-item" onclick="mostrarGrafico('Dinheiro')">
+                        <h4>Dinheiro</h4>
+                        <span id="totalDinheiro">R$ 0,00</span>
+                    </div>
+                    <div class="totais-item" onclick="mostrarGrafico('Cartão Débito')">
+                        <h4>Cartão Débito</h4>
+                        <span id="totalDebito">R$ 0,00</span>
+                    </div>
+                    <div class="totais-item" onclick="mostrarGrafico('Cartão Crédito')">
+                        <h4>Cartão Crédito</h4>
+                        <span id="totalCredito">R$ 0,00</span>
+                    </div>
+                    <div class="totais-item" onclick="mostrarGrafico('Pix')">
+                        <h4>Pix</h4>
+                        <span id="totalPix">R$ 0,00</span>
+                    </div>
+                    <div class="totais-item" onclick="mostrarGrafico('Crediário')">
+                        <h4>Crediário</h4>
+                        <span id="totalCrediario">R$ 0,00</span>
+                    </div>
+                </div>
+                <button class="btn-totais" onclick="mostrarDetalhes()">Detalhamento</button>
+                <button class="btn-totais" onclick="imprimirTotais()">Imprimir</button>
+                <button class="btn-totais" onclick="exportarPDF()">Exportar PDF</button>
+            </div>
+            <div class="totais-grafico">
+                <canvas id="graficoTotais"></canvas>
+            </div>
+        </div>
+        <div class="totais-tabela-area" id="areaDetalhes">
+            <table class="totais-tabela">
+                <thead><tr><th>Data/Hora</th><th>Forma</th><th>Valor</th><th>Descrição</th></tr></thead>
+                <tbody id="tbodyDetalhes"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="screen-relatorios" class="screen">
+        <div class="relatorio-container">
+            <div class="relatorio-menu">
+                <h3>Relatórios</h3>
+                <label style="font-weight:bold; font-size:0.9rem;">Data</label>
+                <input type="date" id="relatorioData" style="padding:8px; width:100%; margin-bottom:10px;" />
+                <button onclick="mostrarRelatorio('extrato')">Extrato de vendas</button>
+                <div style="font-size:0.8rem; color:#444; margin-top:10px;">Evolução de vendas</div>
+                <div class="relatorio-intervalo">
+                    <button onclick="mostrarGraficoRelatorio('evolucao','dia')" id="btnEvolDia">Dia</button>
+                    <button onclick="mostrarGraficoRelatorio('evolucao','semana')" id="btnEvolSemana">Semana</button>
+                    <button onclick="mostrarGraficoRelatorio('evolucao','mes')" id="btnEvolMes">Mês</button>
+                    <button onclick="mostrarGraficoRelatorio('evolucao','ano')" id="btnEvolAno">Ano</button>
+                </div>
+                <button onclick="mostrarGraficoRelatorio('vendasProduto')">Vendas por produto</button>
+                <button onclick="mostrarRelatorio('controlePedidos')">Controle de pedidos</button>
+                <button onclick="mostrarRelatorio('balancoEstoque')">Balanço de estoque</button>
+                <button onclick="mostrarRelatorio('estoqueProdutos')">Estoque de produtos</button>
+                <button class="btn-laranja-erp" onclick="imprimirRelatorio()">Imprimir relatório</button>
+                <button class="btn-laranja-erp" onclick="exportarRelatorioPDF()">Exportar em PDF</button>
+            </div>
+            <div class="relatorio-content">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2 id="relatorioTitulo">Relatório</h2>
+                    <span id="relatorioSubtitulo" style="font-size:0.9rem; color:#666;"></span>
+                </div>
+                <div class="relatorio-view" id="relatorioView">
+                    <div class="relatorio-chart-card" id="relatorioChartCard">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <strong>Gráfico do relatório</strong>
+                            <div class="relatorio-legend" id="relatorioLegend"></div>
+                        </div>
+                        <canvas id="relatorioChart"></canvas>
+                    </div>
+                    <div id="relatorioTable" style="flex:1; overflow:auto; display:none;">
+                        <table style="width:100%; border-collapse: collapse;">
+                            <thead style="background:#263238; color:white;">
+                                <tr><th>Item</th><th>Quantidade</th><th>Valor</th></tr>
+                            </thead>
+                            <tbody id="relatorioTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-catalogo" class="screen">
+        <div style="padding: 15px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:15px;">
+                <h2 style="margin:0; font-size:1.2rem;">Estampas em destaques</h2>
+                <button class="btn-laranja-erp" onclick="document.getElementById('catalogoInput').click()">Carregar imagem</button>
+            </div>
+            <input type="file" id="catalogoInput" accept="image/*" style="display:none" multiple onchange="adicionarImagensCatalogo(event)">
+            <div id="catalogoGrid" class="catalogo-grid"></div>
+            <div id="catalogoAviso" style="margin-top:10px; font-size:0.9rem; color:#666;"></div>
+        </div>
+    </div>
+
+    <div id="screen-backup" class="screen">
+        <div style="padding: 15px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:15px;">
+                <div>
+                    <h2 style="margin:0; font-size:1.2rem;">Backup</h2>
+                    <div style="font-size:0.85rem; color:#444;">Faça backup manual ou restaure de um arquivo salvo.</div>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <label style="font-size:0.9rem;">Data</label>
+                    <input type="date" id="backupData" style="padding:8px;" />
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:15px;">
+                <button class="btn-laranja-erp" onclick="fazerBackup()">Fazer backup</button>
+                <button class="btn-laranja-erp" onclick="document.getElementById('backupInput').click()">Carregar backup</button>
+                <input type="file" id="backupInput" accept="application/json" style="display:none" onchange="restaurarBackup(event)" />
+                <span id="backupStatus" style="display:block; align-self:center; color:#333; font-size:0.9rem;"></span>
+            </div>
+            <div style="background:#fff; border:1px solid #ccc; border-radius:6px; padding:10px;">
+                <h3 style="margin-top:0;">Histórico de backup</h3>
+                <table style="width:100%; border-collapse: collapse;">
+                    <thead style="background:#263238; color:white;"><tr><th style="padding:8px;">Data</th><th style="padding:8px;">Horário</th><th style="padding:8px;">Tamanho (KB)</th><th style="padding:8px;">Arquivo</th></tr></thead>
+                    <tbody id="backupHistoryBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-configuracoes" class="screen">
+        <div class="config-container">
+            <div class="config-menu">
+                <button onclick="showConfigTab('empresa')" id="tab-empresa">Dados da Empresa</button>
+                <button onclick="showConfigTab('usuario')" id="tab-usuario">Cadastro de Usuário</button>
+                <button onclick="showConfigTab('restricao')" id="tab-restricao">Restrição de acesso</button>
+                <button onclick="showConfigTab('impressora')" id="tab-impressora">Configurar Impressora</button>
+                <button onclick="showConfigTab('fornecedor')" id="tab-fornecedor">Cadastrar fornecedores</button>
+                <button onclick="showConfigTab('unidade')" id="tab-unidade">Unidade de medida</button>
+                <button onclick="showConfigTab('pix')" id="tab-pix">Cadastrar chave Pix</button>
+            </div>
+            <div class="config-panel" id="configPanel">
+                <div id="panel-empresa" class="config-section">
+                    <h3>Dados da Empresa</h3>
+                    <div class="config-form">
+                        <div>
+                            <label>Razão social</label>
+                            <input type="text" id="empresaRazao" />
+                        </div>
+                        <div>
+                            <label>Nome fantasia</label>
+                            <input type="text" id="empresaFantasia" />
+                        </div>
+                        <div>
+                            <label>CNPJ</label>
+                            <input type="text" id="empresaCNPJ" />
+                        </div>
+                        <div>
+                            <label>Inscrição Estadual</label>
+                            <input type="text" id="empresaIE" />
+                        </div>
+                        <div>
+                            <label>CEP</label>
+                            <input type="text" id="empresaCEP" />
+                        </div>
+                        <div>
+                            <label>Logradouro</label>
+                            <input type="text" id="empresaLogradouro" />
+                        </div>
+                        <div>
+                            <label>Número</label>
+                            <input type="text" id="empresaNumero" />
+                        </div>
+                        <div>
+                            <label>Complemento</label>
+                            <input type="text" id="empresaComplemento" />
+                        </div>
+                        <div>
+                            <label>Bairro</label>
+                            <input type="text" id="empresaBairro" />
+                        </div>
+                        <div>
+                            <label>Cidade</label>
+                            <input type="text" id="empresaCidade" />
+                        </div>
+                        <div>
+                            <label>UF</label>
+                            <input type="text" id="empresaUF" maxlength="2" />
+                        </div>
+                        <div>
+                            <label>Contato (Nome)</label>
+                            <input type="text" id="empresaContatoNome" />
+                        </div>
+                        <div>
+                            <label>Contato (Telefone)</label>
+                            <input type="text" id="empresaContatoTel" />
+                        </div>
+                    </div>
+                    <div class="config-actions">
+                        <button onclick="salvarEmpresa()">Salvar</button>
+                        <button onclick="limparEmpresa()">Limpar</button>
+                    </div>
+                </div>
+
+                <div id="panel-usuario" class="config-section" style="display:none;">
+                    <h3>Cadastro de Usuário</h3>
+                    <input type="hidden" id="usuarioID" />
+                    <div class="config-form">
+                        <div>
+                            <label>Nome completo</label>
+                            <input type="text" id="usuarioNome" />
+                        </div>
+                        <div>
+                            <label>Login</label>
+                            <input type="text" id="usuarioLogin" />
+                        </div>
+                        <div>
+                            <label>Senha</label>
+                            <input type="password" id="usuarioSenha" />
+                        </div>
+                        <div>
+                            <label>Confirmar senha</label>
+                            <input type="password" id="usuarioSenhaConf" />
+                        </div>
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <label style="display:block; margin-bottom:6px;">Perfil</label>
+                        <label><input type="radio" name="usuarioPerfil" value="Administrador" checked /> Administrador</label>
+                        <label style="margin-left:10px;"><input type="radio" name="usuarioPerfil" value="Caixa" /> Caixa</label>
+                        <label style="margin-left:10px;"><input type="radio" name="usuarioPerfil" value="Padrão" /> Padrão</label>
+                        <label style="margin-left:10px;"><input type="radio" name="usuarioPerfil" value="Técnico" /> Técnico</label>
+                        <label style="margin-left:10px;"><input type="radio" name="usuarioPerfil" value="Atendente" /> Atendente</label>
+                        <label style="margin-left:10px;"><input type="radio" name="usuarioPerfil" value="Designer" /> Designer</label>
+                    </div>
+                    <div class="config-actions">
+                        <button onclick="limparUsuario()">Novo usuário</button>
+                        <button onclick="salvarUsuario()">Salvar</button>
+                        <button onclick="atualizarUsuario()">Editar usuário</button>
+                        <button onclick="deletarUsuarioAtual()">Excluir usuário</button>
+                    </div>
+                    <table class="config-table" id="usuarioTable">
+                        <thead><tr><th>Nome</th><th>Login</th><th>Perfil</th><th>Ações</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div id="panel-restricao" class="config-section" style="display:none;">
+                    <h3>Restrição de Acesso</h3>
+                    <div class="config-form">
+                        <div style="grid-column: span 2;">
+                            <label><input type="checkbox" id="restricaoCancelarItens" /> Cancelamento de itens</label>
+                        </div>
+                        <div style="grid-column: span 2;">
+                            <label><input type="checkbox" id="restricaoVendas" /> Vendas</label>
+                        </div>
+                        <div style="grid-column: span 2;">
+                            <label><input type="checkbox" id="restricaoPagamentos" /> Pagamentos</label>
+                        </div>
+                    </div>
+                    <div class="config-actions">
+                        <button onclick="salvarRestricoes()">Salvar</button>
+                    </div>
+                </div>
+
+                <div id="panel-impressora" class="config-section" style="display:none;">
+                    <h3>Configurar Impressora</h3>
+                    <div class="config-form">
+                        <div>
+                            <label>Nome da impressora</label>
+                            <input type="text" id="impNome" />
+                        </div>
+                        <div>
+                            <label>Porta</label>
+                            <input type="text" id="impPorta" />
+                        </div>
+                        <div>
+                            <label>Tipo</label>
+                            <select id="impTipo">
+                                <option value="normal">Normal</option>
+                                <option value="naoFiscal">Não fiscal</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="config-actions">
+                        <button onclick="salvarImpressora()">Salvar</button>
+                    </div>
+                </div>
+
+                <div id="panel-fornecedor" class="config-section" style="display:none;">
+                    <h3>Cadastrar fornecedores</h3>
+                    <div class="config-form">
+                        <div>
+                            <label>Nome fantasia</label>
+                            <input type="text" id="fornFantasia" />
+                        </div>
+                        <div>
+                            <label>Razão social</label>
+                            <input type="text" id="fornRazao" />
+                        </div>
+                        <div>
+                            <label>CNPJ</label>
+                            <input type="text" id="fornCNPJ" />
+                        </div>
+                        <div>
+                            <label>Inscrição Estadual</label>
+                            <input type="text" id="fornIE" />
+                        </div>
+                        <div>
+                            <label>Telefone</label>
+                            <input type="text" id="fornTel" />
+                        </div>
+                        <div>
+                            <label>CEP</label>
+                            <input type="text" id="fornCEP" />
+                        </div>
+                        <div>
+                            <label>Logradouro</label>
+                            <input type="text" id="fornLogradouro" />
+                        </div>
+                        <div>
+                            <label>Número</label>
+                            <input type="text" id="fornNumero" />
+                        </div>
+                        <div>
+                            <label>Complemento</label>
+                            <input type="text" id="fornComplemento" />
+                        </div>
+                        <div>
+                            <label>Bairro</label>
+                            <input type="text" id="fornBairro" />
+                        </div>
+                        <div>
+                            <label>Cidade</label>
+                            <input type="text" id="fornCidade" />
+                        </div>
+                        <div>
+                            <label>UF</label>
+                            <input type="text" id="fornUF" maxlength="2" />
+                        </div>
+                    </div>
+                    <div class="config-actions">
+                        <button onclick="salvarFornecedor()">Salvar</button>
+                        <button onclick="limparFornecedor()">Limpar</button>
+                    </div>
+                    <table class="config-table" id="fornecedorTable">
+                        <thead><tr><th>Fantasia</th><th>CNPJ</th><th>Telefone</th><th>Ações</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div id="panel-unidade" class="config-section" style="display:none;">
+                    <h3>Cadastrar Unidade de Medida</h3>
+                    <div class="config-form">
+                        <div>
+                            <label>Nome da unidade</label>
+                            <input type="text" id="unidadeNome" />
+                        </div>
+                    </div>
+                    <div class="config-actions">
+                        <button onclick="salvarUnidade()">Salvar</button>
+                        <button onclick="limparUnidade()">Limpar</button>
+                    </div>
+                    <table class="config-table" id="unidadeTable">
+                        <thead><tr><th>Unidade</th><th>Ações</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div id="panel-pix" class="config-section" style="display:none;">
+                    <h3>Cadastrar Chave Pix</h3>
+                    <div style="margin-top: 20px; border: 1px solid #ddd; padding: 15px; border-radius: 8px;">
+                        <h3>Configurar QR Code Pix</h3>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nome do Titular:</label>
+                            <input type="text" id="pixNome" placeholder="Ex: Jairo Rodrigo" style="width: 100%; padding: 8px;">
+                        </div>
+
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Chave Pix:</label>
+                            <input type="text" id="pixChave" placeholder="Sua chave aqui" style="width: 100%; padding: 8px;">
+                        </div>
+
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Tipo de Chave:</label>
+                            <select id="pixTipo" style="width: 100%; padding: 8px;">
+                                <option value="TELEFONE">Telefone</option>
+                                <option value="CPF">CPF</option>
+                                <option value="CNPJ">CNPJ</option>
+                                <option value="EMAIL">E-mail</option>
+                                <option value="ALEATORIA">Chave Aleatória</option>
+                            </select>
+                        </div>
+
+                        <div style="margin-bottom: 15px;">
+                            <label style="font-weight: bold;">Selecionar Imagem do QR Code:</label>
+                            <input type="file" id="pixInputFile" accept="image/*" onchange="previewImagemPix(event)" style="margin-top: 10px;">
+                            
+                            <div id="pixQrPreview" style="display:none; margin-top:10px; text-align: center;">
+                                <p style="font-size: 0.8rem; color: #666;">Prévia do QR Code:</p>
+                                <img id="pixQrImage" src="" style="width:80px; border: 1px solid #ccc; border-radius: 4px;">
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn-primary" onclick="salvarPix()" style="width: 100%;">Salvar Configurações Pix</button>
+                    </div>
+                    
+                    <div class="config-actions">
+                        <button type="button" onclick="salvarPix()">Salvar Pix</button>
+                        <button onclick="limparPix()">Limpar</button>
+                    </div>
+
+                    <table class="config-table" id="pixTable">
+                        <thead><tr><th>Nome</th><th>Chave</th><th>Tipo</th><th>QR Code</th><th>Ações</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-fecharcaixa" class="screen">
+        <div class="totais-container">
+            <div class="totais-resumo">
+                <div class="totais-data">Data: <input type="date" id="dataFechamento" value="2026-03-18" style="font-size:1rem; padding:4px 8px"></div>
+                <div class="totais-grid">
+                    <div class="totais-item"><h4>Dinheiro</h4><span id="fechDinheiro">R$ 0,00</span></div>
+                    <div class="totais-item"><h4>Cartão Débito</h4><span id="fechDebito">R$ 0,00</span></div>
+                    <div class="totais-item"><h4>Cartão Crédito</h4><span id="fechCredito">R$ 0,00</span></div>
+                    <div class="totais-item"><h4>Pix</h4><span id="fechPix">R$ 0,00</span></div>
+                    <div class="totais-item"><h4>Crediário</h4><span id="fechCrediario">R$ 0,00</span></div>
+                </div>
+                <button class="btn-totais" onclick="mostrarCupom()">Modelo do Cupom</button>
+                <button class="btn-totais" onclick="fecharCaixa()">Fechar Caixa</button>
+                <button class="btn-totais" onclick="imprimirCupom()">Imprimir Comprovante</button>
+            </div>
+            <div class="totais-grafico" style="min-width:320px">
+                <div id="modeloCupom" style="background:#fff; border:1px solid #ccc; border-radius:6px; padding:18px; font-family:monospace; font-size:1rem; display:none">
+                    <div id="empresaCupom"></div>
+                    <h4 style="text-align:center; color:#f57c00; margin-bottom:10px">Comprovante de Fechamento</h4>
+                    <div>Data: <span id="cupomData"></span></div>
+                    <div>Dinheiro: <span id="cupomDinheiro"></span></div>
+                    <div>Cartão Débito: <span id="cupomDebito"></span></div>
+                    <div>Cartão Crédito: <span id="cupomCredito"></span></div>
+                    <div>Pix: <span id="cupomPix"></span></div>
+                    <div>Crediário: <span id="cupomCrediario"></span></div>
+                    <div style="font-weight:bold; border-top:2px solid #111; margin-top:8px; padding-top:8px;">Total do caixa: <span id="cupomTotal"></span></div>
+                    <hr>
+                    <div style="text-align:center;">Obrigado pela preferência!</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-recebimento" class="screen">
+        <div style="padding: 20px;">
+            <h3>Recebimento</h3>
+            <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+                <div>
+                    <label>Data de Recebimento:</label><br>
+                    <input type="date" id="dataRecebimento" value="2026-03-18" style="padding: 8px;">
+                </div>
+                <div>
+                    <label>Pesquisar Cliente:</label><br>
+                    <input type="text" id="pesquisaCliente" placeholder="Nome ou Código" style="padding: 8px; width: 200px;">
+                    <button class="btn-laranja-erp" onclick="pesquisarClienteRecebimento()">Pesquisar</button>
+                </div>
+            </div>
+            <div id="dadosCliente" style="display: none; background: #f9f9f9; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                <h4>Dados do Cliente</h4>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                    <div><label>Código:</label><input type="text" id="recCodigo" readonly style="width: 100%; padding: 5px;"></div>
+                    <div><label>Nome:</label><input type="text" id="recNome" readonly style="width: 100%; padding: 5px;"></div>
+                    <div><label>Tipo:</label><input type="text" id="recTipo" readonly style="width: 100%; padding: 5px;"></div>
+                    <div><label id="labelRecCpf">CPF/CNPJ:</label><input type="text" id="recCpf" readonly style="width: 100%; padding: 5px;"></div>
+                    <div><label>Celular:</label><input type="text" id="recCelular" readonly style="width: 100%; padding: 5px;"></div>
+                    <div><label>E-mail:</label><input type="text" id="recEmail" readonly style="width: 100%; padding: 5px;"></div>
+                    <div><label>CEP:</label><input type="text" id="recCep" readonly style="width: 100%; padding: 5px;"></div>
+                    <div><label>Endereço:</label><input type="text" id="recEndereco" readonly style="width: 100%; padding: 5px;"></div>
+                    <div><label>Número:</label><input type="text" id="recNumero" readonly style="width: 100%; padding: 5px;"></div>
+                    <div><label>Bairro:</label><input type="text" id="recBairro" readonly style="width: 100%; padding: 5px;"></div>
+                    <div><label>Complemento:</label><input type="text" id="recComplemento" readonly style="width: 100%; padding: 5px;"></div>
+                    <div><label>Cidade:</label><input type="text" id="recCidade" readonly style="width: 100%; padding: 5px;"></div>
+                    <div><label>UF:</label><input type="text" id="recUf" readonly style="width: 100%; padding: 5px;"></div>
+                </div>
+                <div style="margin-top: 10px;">
+                    <label>Observações:</label><br>
+                    <textarea id="recObservacoes" readonly style="width: 100%; height: 60px; padding: 5px;"></textarea>
+                </div>
+            </div>
+            <div style="display: flex; gap: 20px;">
+                <div style="flex: 1;">
+                    <h4>Recebimentos do Cliente</h4>
+                    <table id="tabelaRecebimentos" class="erp-tabela" style="width: 100%;">
+                        <thead><tr><th>Código Pedido</th><th>Data</th><th>Valor Total</th><th>Valor Pago</th><th>Restante</th><th>Ações</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div style="flex: 1;">
+                    <h4>Parcelas</h4>
+                    <table id="tabelaParcelas" class="erp-tabela" style="width: 100%;">
+                        <thead><tr><th>Parcela</th><th>Vencimento</th><th>Valor</th><th>Status</th><th>Selecionar</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <button class="btn-laranja-erp" style="margin-top: 10px;" onclick="finalizarNoCaixa()">Finalizar no Caixa</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-devolucao" class="screen">
+        <div style="display: flex; flex-direction: row; gap: 30px; padding: 20px;">
+            <div style="flex: 2;">
+                <h3>Devolução</h3>
+                <div style="margin-bottom: 15px;">
+                    <label>Data</label><br>
+                    <input type="date" id="dataDevolucao" value="2026-03-30" style="padding: 8px; width: 180px;">
+                </div>
+                <div style="display: flex; gap: 10px; align-items: flex-end; margin-bottom: 10px;">
+                    <div>
+                        <label>Produto:</label><br>
+                        <input type="text" id="devolucaoProduto" placeholder="Buscar item a ser devolvido" style="padding: 8px; width: 200px;">
+                    </div>
+                    <div>
+                        <label>UN</label><br>
+                        <input type="text" id="devolucaoUnidade" style="padding: 8px; width: 60px;">
+                    </div>
+                    <div>
+                        <label>Qtd.:</label><br>
+                        <input type="number" id="devolucaoQtd" min="1" value="1" style="padding: 8px; width: 60px;">
+                    </div>
+                    <div>
+                        <label>Unit. R$</label><br>
+                        <input type="number" id="devolucaoUnit" min="0" step="0.01" value="0.00" style="padding: 8px; width: 90px;">
+                    </div>
+                    <div>
+                        <label>Total R$</label><br>
+                        <input type="text" id="devolucaoTotal" readonly style="padding: 8px; width: 90px; background: #eee;">
+                    </div>
+                    <button class="btn-laranja-erp" onclick="inserirDevolucao()" style="height: 38px; margin-left: 10px;">Inserir</button>
+                </div>
+                <div style="background: #1a232e; color: #fff; border-radius: 6px 6px 0 0; padding: 8px 10px; font-weight: bold; display: flex;">
+                    <div style="flex:2">Descrição</div>
+                    <div style="flex:0.7; text-align:center;">UN</div>
+                    <div style="flex:0.7; text-align:center;">Qtd</div>
+                    <div style="flex:1; text-align:center;">Unit. R$</div>
+                    <div style="flex:1; text-align:center;">Total R$</div>
+                </div>
+                <div id="tabelaDevolucao" style="background: #fff; min-height: 180px; border: 1px solid #1a232e; border-top: none; border-radius: 0 0 6px 6px; padding: 0 10px;"></div>
+            </div>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 10px; justify-content: flex-start;">
+                <div style="display: flex; align-items: center; justify-content: space-between; background: #222d3a; color: #fff; border-radius: 4px; padding: 8px 12px;">
+                    <span>Venda</span>
+                    <span id="valorVenda">R$ 00,00</span>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; background: #222d3a; color: #fff; border-radius: 4px; padding: 8px 12px;">
+                    <span>Pagamento</span>
+                    <span id="valorPagamento">R$ 00,00</span>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; background: #222d3a; color: #fff; border-radius: 4px; padding: 8px 12px;">
+                    <span>Devolução</span>
+                    <span id="valorDevolucao">R$ 00,00</span>
+                </div>
+                <div style="margin-top: 20px; background: #1a232e; color: #fff; border-radius: 6px; padding: 18px 10px; font-size: 1.3rem; text-align: center;">
+                    <span>Total R$:</span>
+                    <span id="totalDevolucao" style="font-weight: bold; margin-left: 10px;">R$ 00,00</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="react-dashboard.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
