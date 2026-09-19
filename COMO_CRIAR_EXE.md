@@ -20,11 +20,12 @@ Se mostrar a versão, está OK! ✅
 
 ## 🛠️ Criar o Instalador .exe
 
-### Opção 1: Automático (MAIS FÁCIL)
+### Opção 1: Automático offline (MAIS FÁCIL)
 1. Abra a pasta `Sublimix 2.0`
-2. Clique 2x em **`GERAR_INSTALADOR.bat`**
-3. Aguarde...
-4. Arquivo `Sublimix-Instalador.exe` será criado! 🎉
+2. Confirme que `backend\node_modules` já existe
+3. Clique 2x em **`GERAR_INSTALADOR_OFFLINE.bat`**
+4. Aguarde...
+5. Arquivo `Sublimix-Instalador.exe` será criado! 🎉
 
 ### Opção 2: Manual via PowerShell
 ```powershell
@@ -34,17 +35,17 @@ makensis.exe "instalador.nsi"
 
 ---
 
-## 📦 O que está incluído no `.exe`?
+## 📦 O que está incluído no `.exe` offline?
 
 O instalador faz **TUDO automaticamente**:
 
-✅ Verifica se Node.js está instalado  
-✅ Se não tiver, abre o link de download  
-✅ Copia todos os arquivos  
-✅ Instala dependências (`npm install`)  
-✅ Cria banco de dados (`node install.js`)  
+✅ Node.js portátil (`runtime\node.exe`)  
+✅ Todos os arquivos e dependências (`backend\node_modules`)  
+✅ Cria o banco SQLite durante a instalação  
 ✅ Cria atalhos no Desktop  
 ✅ Cria entrada no Menu Iniciar  
+
+> O MySQL não está incluído. `mysql2` é apenas o cliente Node.js; um servidor MySQL exigiria uma distribuição separada e configuração de serviço. O SQLite é o banco padrão e funciona offline.
 
 ---
 
@@ -76,7 +77,7 @@ Abra `instalador.nsi` em um editor de texto e mude:
 !define PRODUCT_WEB_SITE "https://..."       ← Seu site
 ```
 
-Depois execute novamente `GERAR_INSTALADOR.bat`
+Depois execute novamente `GERAR_INSTALADOR_OFFLINE.bat`
 
 ---
 

@@ -9,8 +9,11 @@ echo ╚════════════════════════
 echo.
 
 echo [PASSO 1] Verificando NSIS...
+set "MAKENSIS="
 where makensis >nul 2>&1
-if errorlevel 1 (
+if not errorlevel 1 set "MAKENSIS=makensis.exe"
+if not defined MAKENSIS if exist "C:\Program Files (x86)\NSIS\makensis.exe" set "MAKENSIS=C:\Program Files (x86)\NSIS\makensis.exe"
+if not defined MAKENSIS (
     echo ❌ NSIS não está instalado!
     echo.
     echo Para criar um instalador .exe profissional:
@@ -32,7 +35,29 @@ echo Aguarde alguns segundos...
 echo.
 
 cd /d "%~dp0"
-makensis.exe /V3 "instalador.nsi"
+
+echo [PASSO 2.1] Preparando Node.js portatil...
+if not exist "backend\node_modules" (
+    echo ERRO: backend\node_modules nao existe.
+    echo Execute npm install dentro da pasta backend antes de gerar o instalador.
+    pause
+    exit /b 1
+)
+
+if not exist "runtime" mkdir "runtime"
+for /f "delims=" %%N in ('where node') do (
+    copy /Y "%%N" "runtime\node.exe" >nul
+    goto :runtime_ok
+)
+
+echo ERRO: Node.js nao foi encontrado neste computador.
+echo Instale o Node.js e execute este arquivo novamente.
+pause
+exit /b 1
+
+:runtime_ok
+echo Node.js local incluido no pacote.
+"%MAKENSIS%" /V3 "instalador.nsi"
 
 if %ERRORLEVEL% EQU 0 (
     echo.

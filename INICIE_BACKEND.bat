@@ -18,12 +18,14 @@ echo ║  Iniciando servidor...                    ║
 echo ╚════════════════════════════════════════════╝
 echo.
 
-REM Verificar se Node.js está instalado
-echo [VERIFICAÇÃO] Buscando Node.js...
-node --version >nul 2>&1
+REM Usar o Node.js empacotado no instalador; não depende do Node do Windows
+echo [VERIFICAÇÃO] Buscando Node.js local...
+set "NODE_EXE=%~dp0runtime\node.exe"
+if not exist "%NODE_EXE%" set "NODE_EXE=node"
+"%NODE_EXE%" --version >nul 2>&1
 if errorlevel 1 (
     color 0C
-    echo ❌ ERRO: Node.js não foi encontrado!
+    echo ❌ ERRO: Node.js não foi encontrado no pacote!
     echo.
     echo Para instalar Node.js:
     echo 1. Baixe em: https://nodejs.org/
@@ -36,7 +38,7 @@ if errorlevel 1 (
 )
 
 REM Obter versão do Node.js
-for /f "tokens=*" %%i in ('node --version') do set NODE_VERSION=%%i
+for /f "tokens=*" %%i in ('"%NODE_EXE%" --version') do set NODE_VERSION=%%i
 echo ✅ Node.js %NODE_VERSION% encontrado
 
 REM Ir para a pasta backend
@@ -52,17 +54,10 @@ REM Verificar se node_modules existe
 echo.
 echo [VERIFICAÇÃO] Buscando dependências...
 if not exist "node_modules" (
-    echo ❌ Dependências não instaladas!
-    echo.
-    echo Instalando npm packages...
-    call npm install
-    if errorlevel 1 (
-        color 0C
-        echo ❌ Erro ao instalar dependências!
-        pause
-        exit /b 1
-    )
-    echo ✅ Dependências instaladas
+    color 0C
+    echo ❌ Dependências não foram incluídas no instalador!
+    pause
+    exit /b 1
 )
 echo ✅ Dependências encontradas
 
@@ -82,8 +77,11 @@ echo ║  Veja INICIE_AQUI.md                      ║
 echo ╚════════════════════════════════════════════╝
 echo.
 
+REM Abrir a tela de login no navegador padrão após o servidor iniciar
+start "" /b powershell -NoProfile -WindowStyle Hidden -Command "Start-Sleep -Seconds 2; Start-Process 'http://localhost:3000/login.html'"
+
 REM Executar o servidor Node.js
-npm start
+"%NODE_EXE%" server.js
 
 REM Se chegou aqui, o servidor foi encerrado
 color 0E

@@ -2,6 +2,8 @@
 
 ## 🎯 O que incluir quando enviar para outro computador
 
+Execute `GERAR_INSTALADOR_OFFLINE.bat` e envie apenas `Sublimix-Instalador.exe`. O instalador já leva o Node.js, as dependências e o SQLite.
+
 ### ✅ COPIE ESTAS PASTAS E ARQUIVOS:
 ```
 Sublimix 2.0/
@@ -33,18 +35,19 @@ Sublimix 2.0/
 
 ## 🚀 PASSO A PASSO NO OUTRO COMPUTADOR
 
-### 1️⃣ Pré-requisitos (instale uma única vez)
-- **Node.js LTS**: https://nodejs.org/
-- Reinicie o Windows após instalar
+### 1️⃣ Pré-requisitos para gerar o instalador
+- Node.js instalado no computador de desenvolvimento
+- `backend\node_modules` instalado
+- NSIS instalado e disponível no PATH
 
 ### 2️⃣ Executar a Instalação
-1. Abra a pasta `Sublimix 2.0`
-2. **Clique 2x em `INSTALAR.bat`**
-3. Aguarde terminar (irá instalar todas as dependências automaticamente)
+1. Execute `Sublimix-Instalador.exe`
+2. Clique em **Next** e depois em **Install**
+3. Aguarde a criação do banco SQLite
 
 ### 3️⃣ Iniciar o Sistema
 **Todo dia que quiser usar:**
-1. Clique 2x em `INICIE_BACKEND.bat`
+1. Clique 2x no atalho `Sublimix POS`
 2. Abra `login.html` no navegador
 3. Use as credenciais padrão (veja em INICIE_AQUI.md)
 
@@ -69,7 +72,7 @@ Depois abra `login.html` no navegador.
 ## ⚠️ Possíveis Problemas
 
 ### ❌ "Node.js não encontrado"
-**Solução**: Instale Node.js de https://nodejs.org/ e reinicie o Windows
+**Solução**: gere o instalador com `GERAR_INSTALADOR_OFFLINE.bat`, que inclui `runtime\node.exe`.
 
 ### ❌ Porta 3000 já está em uso
 **Solução**: Na pasta `backend`, execute:
@@ -78,7 +81,7 @@ $env:PORT = 3001; npm start
 ```
 
 ### ❌ "database.db not found"
-**Solução**: Execute `INSTALAR.bat` novamente
+**Solução**: execute o instalador novamente; o banco é criado automaticamente.
 
 ### ❌ Erros de conexão no navegador
 **Solução**: 

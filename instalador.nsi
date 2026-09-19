@@ -13,7 +13,6 @@
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
 
 SetCompressor lzma
-SetCompressionLevel 9
 
 ; MUI Settings
 !insertmacro MUI_PAGE_WELCOME
@@ -29,6 +28,7 @@ SetCompressionLevel 9
 ; Configurações do Instalador
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
 OutFile "Sublimix-Instalador.exe"
+Icon "Sublimix.ico"
 InstallDir "$PROGRAMFILES\Sublimix"
 ShowInstDetails show
 ShowUnInstDetails show
@@ -38,11 +38,25 @@ Section "Sublimix POS 2.0" SEC01
     SetOutPath "$INSTDIR"
     SetOverwrite try
     
-    ; Copiar todos os arquivos
-    File /r "..\*.*"
-    
-    ; Remover node_modules e database.db se existirem
-    RMDir /r "$INSTDIR\backend\node_modules"
+    ; Copiar apenas os arquivos da aplicação e as dependências já instaladas.
+    ; O instalador não acessa a internet nem executa npm install.
+    File "index.html"
+    File "login.html"
+    File "script.js"
+    File "react-dashboard.js"
+    File "style.css"
+    File "INICIE_AQUI.md"
+    File "INICIE_BACKEND.bat"
+    File "Sublimix.ico"
+
+    SetOutPath "$INSTDIR\backend"
+    ; O banco e o .env sao criados no computador de destino.
+    File /r /x "database.db" /x ".env" "backend\*"
+
+    SetOutPath "$INSTDIR\runtime"
+    File /r "runtime\*"
+
+    ; O banco e as configurações são criados no computador de destino.
     Delete "$INSTDIR\backend\database.db"
     Delete "$INSTDIR\backend\.env"
     
@@ -51,36 +65,10 @@ Section "Sublimix POS 2.0" SEC01
     CreateShortCut "$SMPROGRAMS\Sublimix\Sublimix POS.lnk" "$INSTDIR\INICIE_BACKEND.bat" "" "$INSTDIR\Sublimix.ico"
     CreateShortCut "$DESKTOP\Sublimix POS.lnk" "$INSTDIR\INICIE_BACKEND.bat"
     
-    ; Instalar/verificar Node.js
-    Call InstallNodeJS
-    
-SectionEnd
+    ; Inicializar o banco SQLite usando o Node empacotado.
+    ExecWait '"$INSTDIR\runtime\node.exe" "$INSTDIR\backend\install-offline.js"'
 
-; Seção de Instalação de Dependências
-Section "Instalar Dependências" SEC02
-    SetOutPath "$INSTDIR\backend"
-    
-    ; Executar npm install
-    ExecWait "cmd.exe /c npm install"
-    
-    ; Inicializar banco de dados
-    ExecWait "cmd.exe /c node install.js"
-    
 SectionEnd
-
-; Função para instalar Node.js se não estiver instalado
-Function InstallNodeJS
-    ReadRegStr $0 HKLM "Software\Node.js" "InstallPath"
-    ${If} $0 == ""
-        MessageBox MB_YESNO "Node.js não foi detectado.$\nVocê deseja ser levado ao site de download?" IDYES download IDNO skip
-        
-        download:
-            ExecShell "open" "https://nodejs.org/"
-            MessageBox MB_OK "Instale o Node.js LTS e reinicie este instalador."
-            Quit
-        skip:
-    ${EndIf}
-FunctionEnd
 
 ; Seção de Desinstalação
 Section Uninstall

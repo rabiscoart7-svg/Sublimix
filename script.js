@@ -22,6 +22,57 @@ function fazerLogout() {
     let produtos = JSON.parse(localStorage.getItem('produtos')) || [];
     let pedidos = JSON.parse(localStorage.getItem('pedidos')) || [];
 
+    function produtoDaApi(produto) {
+        return {
+            id: produto.id,
+            cod: produto.codigo,
+            data: produto.criado_em ? produto.criado_em.slice(0, 10) : '',
+            desc: produto.nome,
+            unidade: produto.unidade || 'unid',
+            custo: produto.preco_custo || 0,
+            margem: produto.margem || 0,
+            venda: produto.preco_venda,
+            estoque: produto.estoque,
+            estoqueAtual: produto.estoque,
+            estoqueMinimo: produto.estoque_minimo || 0
+        };
+    }
+
+    async function carregarProdutosDoBanco() {
+        try {
+            const resposta = await fetch('/api/products');
+            if (!resposta.ok) throw new Error('Não foi possível carregar os produtos');
+            const produtosBanco = await resposta.json();
+
+            if (!localStorage.getItem('produtosMigradosParaBanco') && produtos.length) {
+                for (const produto of produtos) {
+                    await fetch('/api/products', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            nome: produto.desc,
+                            codigo: produto.cod,
+                            preco_venda: produto.venda || 0,
+                            estoque: produto.estoque || 0,
+                            estoque_minimo: produto.estoqueMinimo || 0
+                        })
+                    });
+                }
+                localStorage.setItem('produtosMigradosParaBanco', '1');
+                return carregarProdutosDoBanco();
+            }
+
+            produtos = produtosBanco.map(produtoDaApi);
+            localStorage.setItem('produtos', JSON.stringify(produtos));
+            atualizarTabelaProduto();
+            atualizarTabelaEstoque();
+            if (document.getElementById('modalProdutosBody')) preencherTabelaProdutosModal(produtos);
+        } catch (error) {
+            console.error('Erro ao carregar produtos do banco:', error);
+            atualizarTabelaProduto();
+        }
+    }
+
     // Carrinho de vendas (Caixa)
     let carrinho = [];
     let totalVenda = 0;
@@ -51,8 +102,13 @@ function fazerLogout() {
 
     // Modal do Caixa / seleção de produto
     let produtoSelecionadoModal = null;
+    let voltarAoCaixaDepoisDoCadastro = false;
 
     function abrirModalProdutosCaixa() {
+        if (!caixaAberto) {
+            alert('Abra o caixa antes de consultar produtos para uma venda.');
+            return;
+        }
         produtoSelecionadoModal = null;
         document.getElementById('modalBuscaProduto').value = '';
         preencherTabelaProdutosModal(produtos);
@@ -61,6 +117,15 @@ function fazerLogout() {
 
     function fecharModalProdutosCaixa() {
         document.getElementById('modalProdutosCaixa').style.display = 'none';
+    }
+
+    function abrirCadastroProduto() {
+        voltarAoCaixaDepoisDoCadastro = true;
+        fecharModalProdutosCaixa();
+        const itemProduto = document.querySelector('.menu li[onclick*="screen-produto"]');
+        mudarTela('screen-produto', itemProduto);
+        novoProduto();
+        document.getElementById('prodDesc').focus();
     }
 
     function preencherTabelaProdutosModal(lista) {
@@ -229,6 +294,10 @@ function fazerLogout() {
     }
 
     function finalizarVenda() {
+        if (!caixaAberto) {
+            alert('Abra o caixa antes de finalizar uma venda.');
+            return;
+        }
         // Validar se há itens no carrinho
         if (!carrinho || carrinho.length === 0) {
             alert('⚠️ Carrinho vazio!\n\n👉 Use F3 ou clique em Consultar Produto para adicionar itens.');
@@ -345,6 +414,7 @@ function fazerLogout() {
         }
 
         const troco = valorPago - total;
+        if (processarRecebimentoPendente('Dinheiro', valorPago, troco)) return;
         
         // Registrar baixa de estoque com detalhes
         let resumoBaixa = '📦 PRODUTOS VENDIDOS - BAIXA DE ESTOQUE:\n\n';
@@ -454,6 +524,7 @@ function fazerLogout() {
 
     function confirmarPagamentoPix() {
         const valorPago = totalVenda;
+        if (processarRecebimentoPendente('Pix', valorPago, 0)) return;
         
         // Registrar baixa de estoque com detalhes
         let resumoBaixa = '📦 PRODUTOS VENDIDOS - BAIXA DE ESTOQUE:\n\n';
@@ -832,7 +903,9 @@ function fazerLogout() {
 
     function abrirModalSangria() {
         document.getElementById('sangriaValor').value = '';
+        document.getElementById('sangriaDescricao').value = '';
         document.getElementById('modalSangriaCaixa').style.display = 'flex';
+        document.getElementById('sangriaDescricao').focus();
     }
 
     function fecharModalSangria() {
@@ -841,17 +914,30 @@ function fazerLogout() {
 
     function confirmarSangria() {
         const valor = parseFloat(document.getElementById('sangriaValor').value) || 0;
+        const descricao = document.getElementById('sangriaDescricao').value.trim();
         if (valor <= 0) {
             alert('Digite um valor válido!');
+            return;
+        }
+        if (!descricao) {
+            alert('Informe o que saiu na sangria.');
+            document.getElementById('sangriaDescricao').focus();
             return;
         }
         
         if (!dadosTotais) dadosTotais = {};
         if (!dadosTotais['Sangria']) dadosTotais['Sangria'] = 0;
         dadosTotais['Sangria'] += valor;
+        detalhesTotais.push({
+            data: new Date().toLocaleString('pt-BR'),
+            forma: 'Sangria',
+            valor,
+            desc: descricao
+        });
         localStorage.setItem('dadosTotais', JSON.stringify(dadosTotais));
+        localStorage.setItem('detalhesTotais', JSON.stringify(detalhesTotais));
         
-        alert(`Sangria de R$ ${valor.toFixed(2)} registrada!`);
+        alert(`Sangria de R$ ${valor.toFixed(2)} registrada: ${descricao}.`);
         initTotais();
         fecharModalSangria();
     }
@@ -1041,6 +1127,7 @@ function fazerLogout() {
     // Funções para Produto
     function limparProduto() {
         document.getElementById('prodCod').value = '';
+        document.getElementById('prodCod').disabled = false;
         document.getElementById('prodData').value = '';
         document.getElementById('prodDesc').value = '';
         document.getElementById('prodUnidade').value = 'unid';
@@ -1057,7 +1144,7 @@ function fazerLogout() {
         document.getElementById('prodData').value = new Date().toISOString().split('T')[0];
     }
 
-    function cadastrarProduto() {
+    async function cadastrarProduto() {
         const produto = {
             cod: document.getElementById('prodCod').value,
             data: document.getElementById('prodData').value,
@@ -1069,11 +1156,41 @@ function fazerLogout() {
             estoque: document.getElementById('prodEstoque').value,
             estoqueAtual: document.getElementById('prodEstoqueAtual').value
         };
-        produtos.push(produto);
-        localStorage.setItem('produtos', JSON.stringify(produtos));
-        atualizarTabelaProduto();
-        alert('Produto Cadastrado!');
+        if (!produto.cod.trim() || !produto.desc.trim() || !produto.venda || Number.isNaN(Number(produto.venda)) || Number(produto.venda) < 0) {
+            alert('Preencha o código, a descrição e um valor de venda válido.');
+            return;
+        }
+        let resposta;
+        try {
+            resposta = await fetch('/api/products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nome: produto.desc.trim(),
+                    codigo: produto.cod.trim(),
+                    preco_venda: Number(produto.venda),
+                    estoque: Number(produto.estoque) || 0,
+                    estoque_minimo: 0
+                })
+            });
+        } catch (error) {
+            alert('Não foi possível conectar ao banco. Feche o backend antigo e execute o INICIE_BACKEND.bat atualizado.');
+            return;
+        }
+        if (!resposta.ok) {
+            const erro = await resposta.json().catch(() => ({}));
+            alert(erro.message || 'Não foi possível salvar o produto no banco. Reinicie o backend e tente novamente.');
+            return;
+        }
+        alert('Produto cadastrado no banco com sucesso!');
         limparProduto();
+        await carregarProdutosDoBanco();
+        if (voltarAoCaixaDepoisDoCadastro) {
+            voltarAoCaixaDepoisDoCadastro = false;
+            const itemCaixa = document.querySelector('.menu li[onclick*="screen-caixa"]');
+            mudarTela('screen-caixa', itemCaixa);
+            abrirModalProdutosCaixa();
+        }
     }
 
     function atualizarTabelaProduto() {
@@ -1122,6 +1239,7 @@ function fazerLogout() {
     }
 
     function desabilitarCamposProduto() {
+        document.getElementById('prodCod').disabled = true;
         document.getElementById('prodData').disabled = true;
         document.getElementById('prodDesc').disabled = true;
         document.getElementById('prodUnidade').disabled = true;
@@ -1140,6 +1258,7 @@ function fazerLogout() {
         }
         
         // Habilitar campos
+        document.getElementById('prodCod').disabled = false;
         document.getElementById('prodData').disabled = false;
         document.getElementById('prodDesc').disabled = false;
         document.getElementById('prodUnidade').disabled = false;
@@ -1156,7 +1275,7 @@ function fazerLogout() {
         alert('✏️ Campos habilitados para edição!\n\nFaça as alterações e clique em "Salvar Edição"');
     }
 
-    function editarProduto() {
+    async function editarProduto() {
         if (produtoSelecionado === null) {
             alert('⚠️ Selecione um produto para editar.');
             return;
@@ -1178,8 +1297,22 @@ function fazerLogout() {
         p.estoque = document.getElementById('prodEstoque').value;
         p.estoqueAtual = document.getElementById('prodEstoqueAtual').value;
         
-        localStorage.setItem('produtos', JSON.stringify(produtos));
-        atualizarTabelaProduto();
+        const resposta = await fetch(`/api/products/${p.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nome: p.desc,
+                codigo: p.cod,
+                preco_venda: p.venda || 0,
+                estoque: p.estoqueAtual || p.estoque || 0,
+                estoque_minimo: p.estoqueMinimo || 0
+            })
+        });
+        if (!resposta.ok) {
+            alert('Não foi possível atualizar o produto no banco.');
+            return;
+        }
+        await carregarProdutosDoBanco();
         
         // Feedback melhorado
         alert('✅ Produto salvo com sucesso!');
@@ -1190,16 +1323,20 @@ function fazerLogout() {
         produtoSelecionado = null;
     }
 
-    function excluirProduto() {
+    async function excluirProduto() {
         if (produtoSelecionado === null) {
             alert('Selecione um produto para excluir.');
             return;
         }
         if (confirm('Tem certeza que deseja excluir este produto?')) {
-            produtos.splice(produtoSelecionado, 1);
-            localStorage.setItem('produtos', JSON.stringify(produtos));
-            atualizarTabelaProduto();
-            alert('Produto Excluído!');
+            const produto = produtos[produtoSelecionado];
+            const resposta = await fetch(`/api/products/${produto.id}`, { method: 'DELETE' });
+            if (!resposta.ok) {
+                alert('Não foi possível excluir o produto no banco.');
+                return;
+            }
+            await carregarProdutosDoBanco();
+            alert('Produto excluído!');
             limparProduto();
             produtoSelecionado = null;
         }
@@ -1731,6 +1868,8 @@ function fazerLogout() {
         initFecharCaixa();
         atualizarTabelaEstoque();
         initCaixa();
+        carregarUnidades();
+        carregarProdutosDoBanco();
     };
 
     // --- ESTOQUE ---
@@ -1780,19 +1919,45 @@ function fazerLogout() {
     }
 
     // --- LÓGICA TOTAIS EM CAIXA ---
-    let dadosTotais = {
-        Dinheiro: 1500.00,
-        'Cartão Débito': 800.00,
-        'Cartão Crédito': 1200.00,
-        Pix: 600.00,
-        Crediario: 400.00
+    const totaisIniciais = {
+        Dinheiro: 0,
+        'Cartão Débito': 0,
+        'Cartão Crédito': 0,
+        Pix: 0,
+        Crediario: 0
     };
-    let detalhesTotais = [
-        { data: '2023-10-01 10:00', forma: 'Dinheiro', valor: 100.00, desc: 'Venda 001' },
-        { data: '2023-10-01 11:00', forma: 'Pix', valor: 200.00, desc: 'Venda 002' },
-        // Adicione mais dados simulados conforme necessário
-    ];
+    let dadosTotais = { ...totaisIniciais, ...JSON.parse(localStorage.getItem('dadosTotais') || '{}') };
+    let detalhesTotais = JSON.parse(localStorage.getItem('detalhesTotais') || '[]');
+    let caixaAberto = localStorage.getItem('caixaAberto') !== 'false';
+    let saldoInicialCaixa = Number(localStorage.getItem('saldoInicialCaixa') || 0);
     let chart;
+
+    function atualizarStatusCaixa() {
+        const status = document.getElementById('statusCaixa');
+        if (!status) return;
+        status.innerText = caixaAberto ? 'Caixa aberto' : 'Caixa fechado';
+        status.style.color = caixaAberto ? '#2e7d32' : '#c62828';
+    }
+
+    function abrirCaixa() {
+        if (caixaAberto) {
+            alert('O caixa já está aberto.');
+            return;
+        }
+        const valor = prompt('Informe o valor inicial do caixa (opcional):', '0');
+        if (valor === null) return;
+        const valorInicial = Number(String(valor).replace(',', '.'));
+        if (!Number.isFinite(valorInicial) || valorInicial < 0) {
+            alert('Informe um valor inicial válido.');
+            return;
+        }
+        saldoInicialCaixa = valorInicial;
+        caixaAberto = true;
+        localStorage.setItem('caixaAberto', 'true');
+        localStorage.setItem('saldoInicialCaixa', String(saldoInicialCaixa));
+        atualizarStatusCaixa();
+        alert(`Caixa aberto com saldo inicial de R$ ${saldoInicialCaixa.toFixed(2)}.`);
+    }
 
     function initTotais() {
         document.getElementById('dataTotais').innerText = new Date().toLocaleDateString('pt-BR');
@@ -1911,6 +2076,7 @@ function fazerLogout() {
         document.querySelectorAll('.config-section').forEach(sec => sec.style.display = 'none');
         document.getElementById('tab-' + tab).classList.add('active');
         document.getElementById('panel-' + tab).style.display = 'block';
+        if (tab === 'impressora') carregarImpressoras();
     }
 
     // Empresa
@@ -2061,14 +2227,52 @@ function fazerLogout() {
     // Impressora
     function carregarImpressora() {
         const imp = JSON.parse(localStorage.getItem('impressora') || '{}');
-        document.getElementById('impNome').value = imp.nome || '';
+        document.getElementById('impNomeManual').value = imp.nome || '';
         document.getElementById('impPorta').value = imp.porta || '';
         document.getElementById('impTipo').value = imp.tipo || 'normal';
+        carregarImpressoras(imp.nome);
+    }
+
+    async function carregarImpressoras(nomeSelecionado = '') {
+        const select = document.getElementById('impNome');
+        const status = document.getElementById('impStatus');
+        if (!select || !status) return;
+
+        status.textContent = 'Consultando impressoras instaladas...';
+        try {
+            const resposta = await fetch('/api/printers');
+            if (!resposta.ok) throw new Error('Falha ao consultar impressoras');
+            const dados = await resposta.json();
+            select.innerHTML = '<option value="">Selecione uma impressora</option>';
+            dados.printers.forEach(printer => {
+                const option = document.createElement('option');
+                option.value = printer.Name || '';
+                option.textContent = printer.Default ? `${printer.Name} (padrão)` : printer.Name;
+                option.dataset.porta = printer.PortName || '';
+                option.dataset.driver = printer.DriverName || '';
+                select.appendChild(option);
+            });
+            select.value = nomeSelecionado || '';
+            if (select.value) selecionarImpressora();
+            status.textContent = dados.printers.length
+                ? `${dados.printers.length} impressora(s) encontrada(s).`
+                : (dados.message || 'Nenhuma impressora encontrada.');
+        } catch (error) {
+            status.textContent = 'Não foi possível listar automaticamente. Use o campo manual abaixo.';
+        }
+    }
+
+    function selecionarImpressora() {
+        const select = document.getElementById('impNome');
+        const option = select.options[select.selectedIndex];
+        if (!option || !option.value) return;
+        document.getElementById('impNomeManual').value = option.value;
+        document.getElementById('impPorta').value = option.dataset.porta || '';
     }
 
     function salvarImpressora() {
         const imp = {
-            nome: document.getElementById('impNome').value,
+            nome: document.getElementById('impNomeManual').value || document.getElementById('impNome').value,
             porta: document.getElementById('impPorta').value,
             tipo: document.getElementById('impTipo').value
         };
@@ -2125,19 +2329,51 @@ function fazerLogout() {
     function carregarUnidades() {
         const unidades = JSON.parse(localStorage.getItem('unidades') || '[]');
         const tbody = document.querySelector('#unidadeTable tbody');
-        tbody.innerHTML = '';
-        unidades.forEach((u, idx) => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${u}</td><td><button onclick="removerUnidade(${idx})">Excluir</button></td>`;
-            tbody.appendChild(tr);
+        if (tbody) {
+            tbody.innerHTML = '';
+            unidades.forEach((u, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${u}</td><td><button onclick="removerUnidade(${idx})">Excluir</button></td>`;
+                tbody.appendChild(tr);
+            });
+        }
+        atualizarUnidadesProduto(unidades);
+    }
+
+    function atualizarUnidadesProduto(unidades = JSON.parse(localStorage.getItem('unidades') || '[]')) {
+        const select = document.getElementById('prodUnidade');
+        if (!select) return;
+
+        const valorAtual = select.value || 'unid';
+        const opcoes = ['unid', ...unidades.map(unidade => String(unidade).trim()).filter(Boolean)]
+            .filter((unidade, idx, lista) => lista.findIndex(item => item.toLowerCase() === unidade.toLowerCase()) === idx);
+
+        select.innerHTML = '';
+        opcoes.forEach(unidade => {
+            const option = document.createElement('option');
+            option.value = unidade;
+            option.textContent = unidade;
+            select.appendChild(option);
         });
+
+        if (!opcoes.some(unidade => unidade.toLowerCase() === valorAtual.toLowerCase())) {
+            const option = document.createElement('option');
+            option.value = valorAtual;
+            option.textContent = valorAtual;
+            select.appendChild(option);
+        }
+        select.value = valorAtual;
     }
 
     function salvarUnidade() {
         const nome = document.getElementById('unidadeNome').value;
         if (!nome) { alert('Informe o nome da unidade.'); return; }
         const unidades = JSON.parse(localStorage.getItem('unidades') || '[]');
-        unidades.push(nome);
+        if (unidades.some(unidade => unidade.toLowerCase() === nome.trim().toLowerCase())) {
+            alert('Esta unidade já está cadastrada.');
+            return;
+        }
+        unidades.push(nome.trim());
         localStorage.setItem('unidades', JSON.stringify(unidades));
         carregarUnidades();
         alert('Unidade salva.');
@@ -2572,47 +2808,6 @@ function fazerLogout() {
         imprimirDocumento(titulo, corpo);
     }
 
-    function exportarRelatorioPDF() {
-        if (typeof html2pdf === 'undefined') {
-            alert('Biblioteca PDF não carregada. Use a opção Imprimir relatório.');
-            return;
-        }
-
-        const { titulo, corpo } = gerarConteudoRelatorio();
-        const elemento = document.createElement('div');
-        const estilosPdf = `${estilosImpressao()}
-            body { font-size: 10px; }
-            .documento { width: 72mm; max-width: 72mm; margin: 0 auto; }
-            .documento-empresa { font-size: 10px; padding-bottom: 7px; }
-            .empresa-nome { font-size: 15px; }
-            .documento-titulo { font-size: 13px; margin: 9px 0 6px; }
-            .documento-linha { padding: 3px 0; }
-            table { table-layout: fixed; font-size: 10px; }
-            th, td { padding: 3px 1px; vertical-align: top; }
-            th:nth-child(1), td:nth-child(1) { width: 48%; overflow-wrap: anywhere; }
-            th:nth-child(2), td:nth-child(2) { width: 20%; text-align: center; white-space: nowrap; }
-            th:nth-child(3), td:nth-child(3) { width: 32%; white-space: nowrap; }
-        `;
-        elemento.innerHTML = `<style>${estilosPdf}</style><main class="documento">${corpo}</main>`;
-        elemento.style.position = 'absolute';
-        elemento.style.left = '0';
-        elemento.style.top = '0';
-        elemento.style.width = '80mm';
-        elemento.style.zIndex = '9999';
-        elemento.style.background = '#fff';
-        document.body.appendChild(elemento);
-
-        const alturaConteudo = Math.max(100, Math.ceil(elemento.scrollHeight * 25.4 / 96) + 8);
-
-        html2pdf().set({
-            margin: 4,
-            filename: `${titulo.toLowerCase().replace(/[^a-z0-9]+/gi, '_')}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, backgroundColor: '#ffffff' },
-            jsPDF: { unit: 'mm', format: [80, alturaConteudo], orientation: 'portrait' }
-        }).from(elemento).save().then(() => elemento.remove());
-    }
-
     function mostrarCupom() {
         document.getElementById('modeloCupom').style.display = 'block';
         document.getElementById('empresaCupom').innerHTML = gerarCabecalhoEmpresa();
@@ -2648,6 +2843,58 @@ function fazerLogout() {
 
     // --- LÓGICA RECEBIMENTO ---
     let clienteSelecionado = null;
+    let recebimentoPendente = null;
+
+    function processarRecebimentoPendente(formaPagamento, valorPago, troco) {
+        if (!recebimentoPendente) return false;
+
+        const pedido = pedidos.find(item => item.id == recebimentoPendente.pedidoId);
+        if (!pedido) {
+            alert('O pedido do recebimento não foi encontrado.');
+            recebimentoPendente = null;
+            return true;
+        }
+
+        const valor = recebimentoPendente.valor;
+        pedido.entrada = Math.min(Number(pedido.total) || 0, (Number(pedido.entrada) || 0) + valor);
+        pedidos = pedidos.map(item => item.id == pedido.id ? pedido : item);
+        localStorage.setItem('pedidos', JSON.stringify(pedidos));
+
+        if (!dadosTotais[formaPagamento]) dadosTotais[formaPagamento] = 0;
+        dadosTotais[formaPagamento] += valor;
+        detalhesTotais.push({
+            data: new Date().toLocaleString('pt-BR'),
+            forma: formaPagamento,
+            valor,
+            desc: `Recebimento do pedido ${pedido.id}`
+        });
+        localStorage.setItem('dadosTotais', JSON.stringify(dadosTotais));
+        localStorage.setItem('detalhesTotais', JSON.stringify(detalhesTotais));
+
+        ultimaVenda = {
+            data: new Date().toLocaleString('pt-BR'),
+            itens: [{ cod: `REC-${pedido.id}`, desc: `Recebimento pedido ${pedido.id}`, qtd: 1, unidade: 'un', valor }],
+            total: valor,
+            formaPagamento,
+            valorPago,
+            troco
+        };
+        salvarVendaNosHistorico(ultimaVenda);
+
+        recebimentoPendente = null;
+        totalVenda = 0;
+        totalPagamento = 0;
+        carrinho = [];
+        atualizarCaixa();
+        initTotais();
+        fecharModalDinheiroCaixa();
+        fecharModalPixCaixa();
+        fecharModalPagamentoCaixa();
+        listarRecebimentos(clienteSelecionado ? clienteSelecionado.id : pedido.cliente_id);
+        document.querySelector('#tabelaParcelas tbody').innerHTML = '';
+        alert(`Recebimento de R$ ${valor.toFixed(2)} finalizado no Caixa em ${formaPagamento}.`);
+        return true;
+    }
 
     function pesquisarClienteRecebimento() {
         const pesquisa = document.getElementById('pesquisaCliente').value.toLowerCase();
@@ -2724,29 +2971,32 @@ function fazerLogout() {
             alert('Selecione pelo menos uma parcela!');
             return;
         }
+        if (!caixaAberto) {
+            alert('Abra o caixa antes de finalizar o recebimento.');
+            return;
+        }
+
         let total = 0;
+        const pedidoId = selecionadas[0].dataset.pedido;
         selecionadas.forEach(cb => {
             total += parseFloat(cb.dataset.valor);
         });
-        // Adicionar ao caixa como entrada
-        alert(`Recebimento de R$ ${total.toFixed(2)} finalizado no caixa!`);
-        // Atualizar dadosTotais: adicionar ao Dinheiro
-        dadosTotais.Dinheiro += total;
-        localStorage.setItem('dadosTotais', JSON.stringify(dadosTotais));
-        initTotais();
-        initFecharCaixa();
-        // Zerar seleções
-        selecionadas.forEach(cb => cb.checked = false);
-        // Voltar ao caixa
+        recebimentoPendente = { pedidoId, valor: total };
+        carrinho = [{ cod: `REC-${pedidoId}`, desc: `Recebimento do pedido ${pedidoId}`, unidade: 'un', valor: total, qtd: 1 }];
+        totalVenda = total;
+        totalPagamento = 0;
+        atualizarCaixa();
         mudarTela('screen-caixa', document.querySelector('li[onclick*="screen-caixa"]'));
+        abrirModalPagamentoCaixa();
     }
 
     function fecharCaixa() {
-        alert('Caixa fechado com sucesso!');
-        // Zerar as informações
-        clientes = [];
-        produtos = [];
-        pedidos = [];
+        if (!caixaAberto) {
+            alert('O caixa já está fechado.');
+            return;
+        }
+        if (!confirm('Deseja fechar o caixa e zerar os totais atuais?')) return;
+        mostrarCupom();
         dadosTotais = {
             Dinheiro: 0.00,
             'Cartão Débito': 0.00,
@@ -2755,19 +3005,19 @@ function fazerLogout() {
             Crediario: 0.00
         };
         detalhesTotais = [];
-        // Salvar no localStorage
-        localStorage.setItem('clientes', JSON.stringify(clientes));
-        localStorage.setItem('produtos', JSON.stringify(produtos));
-        localStorage.setItem('pedidos', JSON.stringify(pedidos));
+        caixaAberto = false;
+        saldoInicialCaixa = 0;
         localStorage.setItem('dadosTotais', JSON.stringify(dadosTotais));
         localStorage.setItem('detalhesTotais', JSON.stringify(detalhesTotais));
-        // Atualizar tabelas
-        atualizarTabelaCliente();
-        atualizarTabelaProduto();
-        atualizarTabelaPedido();
+        localStorage.setItem('caixaAberto', 'false');
+        localStorage.setItem('saldoInicialCaixa', '0');
         initTotais();
         initFecharCaixa();
-        mostrarCupom();
+        atualizarStatusCaixa();
+        carrinho = [];
+        totalVenda = 0;
+        atualizarCaixa();
+        alert('Caixa fechado com sucesso. Os totais foram zerados e os cadastros foram preservados.');
     }
 
     // --- LÓGICA DEVOLUÇÃO ---

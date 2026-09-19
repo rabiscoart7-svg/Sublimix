@@ -34,6 +34,7 @@
         <img src="https://cdn-icons-png.flaticon.com/512/1046/1046875.png" alt="Logo" />
         <span>Sublimix</span>
     </div>
+    <div id="react-dashboard"></div>
     <ul class="menu">
         <li class="active" onclick="mudarTela('screen-caixa', this)">Caixa</li>
         <li onclick="mudarTela('screen-pedido', this)">Fazer encomenda</li>
@@ -111,7 +112,6 @@
     </div>
 
     <div id="screen-caixa" class="screen active">
-        <div id="react-dashboard"></div>
         <div class="caixa-grid">
             <div class="caixa-topo">
                 <div style="flex:3"><label style="font-size:0.8rem">Produto (F3)</label><br><input id="caixaInputProduto" type="text" style="width:100%; padding:8px" placeholder="🔍"></div>
@@ -292,6 +292,8 @@
                     <div style="padding: 20px;">
                         <label style="font-size: 0.9rem; font-weight: bold;">Valor da Sangria:</label>
                         <input id="sangriaValor" type="number" step="0.01" min="0" placeholder="0,00" style="width:100%; padding:10px; border: 2px solid #ccc; border-radius: 4px; font-size: 1rem; margin-top: 8px;">
+                        <label for="sangriaDescricao" style="display:block; font-size: 0.9rem; font-weight: bold; margin-top: 14px;">O que saiu da sangria?</label>
+                        <input id="sangriaDescricao" type="text" maxlength="120" placeholder="Ex.: Água, material de limpeza ou outro gasto" style="width:100%; padding:10px; border: 2px solid #ccc; border-radius: 4px; font-size: 1rem; margin-top: 8px;">
                     </div>
                     <div class="modal-footer">
                         <button class="btn-secondary" onclick="fecharModalSangria()">Cancelar</button>
@@ -317,6 +319,8 @@
 
             <div class="caixa-rodape">
                 <div>
+                    <button class="btn-rodape-caixa" style="background:#2e7d32; color:white; border:none" onclick="abrirCaixa()">Abrir Caixa</button>
+                    <span id="statusCaixa" style="margin-left:8px; font-weight:bold; color:#2e7d32">Caixa aberto</span>
                     <button class="btn-rodape-caixa" style="background:white" onclick="abrirModalSuprimento()">Suprimento</button>
                     <button class="btn-rodape-caixa" style="background:white" onclick="abrirModalSangria()">Sangria</button>
                 </div>
@@ -366,7 +370,7 @@
         <div class="erp-form">
             <h4 style="margin-bottom:10px">Cadastro do Produto</h4>
             <div class="erp-grid">
-                <div class="erp-field"><label>Código do pedido*</label><input type="text" id="prodCod" readonly></div>
+                <div class="erp-field"><label>Código do produto*</label><input type="text" id="prodCod" placeholder="Informe o código"></div>
                 <div class="erp-field"><label>Data cadastro*</label><input type="date" id="prodData"></div>
                 <div class="erp-field" style="grid-column: span 2"><label>Descrição do produto*</label><input type="text" id="prodDesc"></div>
                 <div class="erp-field"><label>Unidade*</label><select id="prodUnidade"><option>unid</option></select></div>
@@ -486,7 +490,6 @@
                 <button onclick="mostrarRelatorio('balancoEstoque')">Balanço de estoque</button>
                 <button onclick="mostrarRelatorio('estoqueProdutos')">Estoque de produtos</button>
                 <button class="btn-laranja-erp" onclick="imprimirRelatorio()">Imprimir relatório</button>
-                <button class="btn-laranja-erp" onclick="exportarRelatorioPDF()">Exportar em PDF</button>
             </div>
             <div class="relatorio-content">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -691,9 +694,16 @@
                 <div id="panel-impressora" class="config-section" style="display:none;">
                     <h3>Configurar Impressora</h3>
                     <div class="config-form">
-                        <div>
-                            <label>Nome da impressora</label>
-                            <input type="text" id="impNome" />
+                        <div class="printer-picker">
+                            <label for="impNome">Impressora instalada</label>
+                            <div class="printer-picker-row">
+                                <select id="impNome" onchange="selecionarImpressora()">
+                                    <option value="">Selecione uma impressora</option>
+                                </select>
+                                <button type="button" class="config-secondary-button" onclick="carregarImpressoras()">Atualizar</button>
+                            </div>
+                            <small id="impStatus" class="printer-status">As impressoras instaladas serão carregadas ao abrir esta tela.</small>
+                            <input type="text" id="impNomeManual" placeholder="Ou informe o nome manualmente" />
                         </div>
                         <div>
                             <label>Porta</label>
@@ -914,15 +924,15 @@
                     <textarea id="recObservacoes" readonly style="width: 100%; height: 60px; padding: 5px;"></textarea>
                 </div>
             </div>
-            <div style="display: flex; gap: 20px;">
-                <div style="flex: 1;">
+            <div style="display: block;">
+                <div style="width: 100%;">
                     <h4>Recebimentos do Cliente</h4>
                     <table id="tabelaRecebimentos" class="erp-tabela" style="width: 100%;">
                         <thead><tr><th>Código Pedido</th><th>Data</th><th>Valor Total</th><th>Valor Pago</th><th>Restante</th><th>Ações</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
-                <div style="flex: 1;">
+                <div style="width: 100%; margin-top: 20px;">
                     <h4>Parcelas</h4>
                     <table id="tabelaParcelas" class="erp-tabela" style="width: 100%;">
                         <thead><tr><th>Parcela</th><th>Vencimento</th><th>Valor</th><th>Status</th><th>Selecionar</th></tr></thead>
